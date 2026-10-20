@@ -9,6 +9,12 @@
 **<https://ly.id.ly/Cyber-Michelangelo/>** — deployed straight from this repository (GitHub Pages mirror).
 A Cloudflare Pages deployment with a custom domain is planned next.
 
+### What's new in v1.1
+
+- **Readability pass:** dark-outlined sprites, brighter weapon cores, stronger enemy eyes and a light halo behind the player craft.
+- **Fairer opening:** first pod cluster on wave 1, missed clusters retry next wave, **2 starting NOVA charges**, longer **8.5 s Phoenix**, calmer first wave.
+- **First-run tutorial:** a short hint line teaches the pod → module loop during the first seconds of stage 1.
+
 ![Title screen](screenshots/title.png)
 
 ---
@@ -63,9 +69,9 @@ Menus: `↑ ↓` + `Enter`; `Esc` = back. Auto-fire can also be enabled for keyb
 A twin-laser craft with a forgiving 4-pixel core hitbox and a banked, weighty feel.
 
 ### 2. Shoot the pods, earn the modules
-Ground relics scroll into view in clusters of four. **Destroy every pod in a cluster** to release the module capsule it guards — the cluster carries the number of the piece you still need (`2`, `3`, `4`, `5`). Let the pods scroll past and the cluster is lost: it will appear again later.
+Ground relics scroll into view in clusters of four. **Destroy every pod in a cluster** to release the module capsule it guards — the cluster carries the number of the piece you still need (`2`, `3`, `4`, `5`). Let the pods scroll past and the **cluster retries on the very next wave**, so a missed cluster never costs a whole stage.
 
-> أطلق النار على الصوامع الأرضية الأربعة في كل مجموعة لتُحرّر كبسولة الوحدة المرقّمة، ثم التقطها لتلتحم بسفينتك.
+> أطلق النار على الصوامع الأرضية الأربعة في كل مجموعة لتُحرّر كبسولة الوحدة المرقّمة، ثم التقطها لتلتحم بسفينتك — وإذا فوّت مجموعة فستعود في الموجة التالية.
 
 The four modules, each with its own role:
 
@@ -88,10 +94,10 @@ With **1–3 pieces docked**, press `X` to make the pieces split into a tactical
 While split, the pieces are **invulnerable and fire faster**, but the main hull is **not**. A hit on the hull reverts you to a singular craft and all pieces are lost — risk / reward. The formation auto-rejoins after 3.4 s, then needs a short cooldown.
 
 ### 4. Phoenix transformation
-Collect **all four pieces**, then press `X`. The craft becomes the **invincible flaming Phoenix** for 7.5 s: it flies faster, clears bullets, destroys enemies by contact, pours out a triple flame stream and doubles score gains. When the fire dies down, the four pieces **burn out** — rebuild by hunting new pod clusters.
+Collect **all four pieces**, then press `X`. The craft becomes the **invincible flaming Phoenix** for 8.5 s: it flies faster, clears bullets, destroys enemies by contact, pours out a triple flame stream and doubles score gains. When the fire dies down, the four pieces **burn out** — rebuild by hunting new pod clusters.
 
 ### 5. Nova bomb
-Start each run with one **NOVA** charge (max 3). Press `B` to erase every enemy bullet on screen, invincibly flash, and deal heavy damage to everything nearby. Charges drop from Goliath gunships, bosses and score milestones.
+Start each run with **two** NOVA charges (max 3). Press `B` to erase every enemy bullet on screen, invincibly flash, and deal heavy damage to everything nearby. Charges drop from Goliath gunships, bosses and score milestones.
 
 ### 6. Endless looped stages
 Five procedural waves per stage, then a boss. Three hand-built environments cycle endlessly:

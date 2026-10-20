@@ -98,6 +98,8 @@ export class Game {
     this.pendingSpawns = [];
     this.scaling = { hpMul: 1, bulletSpeed: 1, density: 1, fireRate: 1 };
     this.lastNova = 0;
+    this.podRetry = false;
+    this.tutorialTimer = 0;
 
     this.applyVolumes();
     this.hooks.music('title');
@@ -286,6 +288,8 @@ export class Game {
     this.phoenixesThisRun = 0;
     this.continueUsed = false;
     this.continuedThisRun = false;
+    this.podRetry = false;
+    this.tutorialTimer = 18;
     this.player = new Player(this);
     this.player.reset();
     this.enemies = [];
@@ -326,6 +330,7 @@ export class Game {
     this.podCluster = null;
     this.boss = null;
     this.pickups.length = 0;
+    this.podRetry = false;
     if (this.player && !this.player.dead) {
       this.player.x = PLAYER.spawnX;
       this.player.y = PLAYER.spawnY;
@@ -340,7 +345,11 @@ export class Game {
     const wave = this.stagePlan.waves[index];
     if (!wave) return;
     this.pendingSpawns = wave.spawns.map((s) => ({ ...s, spawned: false }));
-    if (wave.pods) this.spawnPodCluster();
+    // Pods: scheduled clusters, plus a retry next wave if a cluster was missed.
+    if (wave.pods || (this.podRetry && this.player.modules.length < 4)) {
+      this.spawnPodCluster();
+      this.podRetry = false;
+    }
     this.stageState = 'waves';
   }
 
@@ -350,6 +359,7 @@ export class Game {
 
   updatePlaying(dt, input) {
     this.runTime += dt;
+    if (this.tutorialTimer > 0) this.tutorialTimer = Math.max(0, this.tutorialTimer - dt);
 
     if (input.pause) {
       this.goToScene('paused', null);
@@ -527,6 +537,9 @@ export class Game {
       if (cluster.destroyed === cluster.pods.length && !cluster.awarded) {
         cluster.awarded = true;
         this.awardPodCluster(cluster);
+      } else if (cluster.missed > 0 && this.player.modules.length < 4) {
+        // A missed cluster comes back next wave instead of waiting a whole stage.
+        this.podRetry = true;
       }
       this.podCluster = null;
     }

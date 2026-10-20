@@ -360,14 +360,39 @@ test('kills score, chain combos and multipliers', () => {
 test('nova clears bullets, damages enemies, and consumes a charge', () => {
   const g = invincible(new Game({ seed: 16 }));
   g.startRun();
-  assert.equal(g.novas, 1);
+  assert.equal(g.novas, GAME.startingNovas);
   g.enemyBullets.push({ x: 100, y: 100, vx: 0, vy: 10, r: 2 });
   const e = { x: g.player.x, y: g.player.y - 30, r: 5, hp: 5, maxHp: 5, score: 100, def: ENEMY_TYPES.wraith, dead: false, flash: 0, kind: 'wraith' };
   g.enemies.push(e);
   g.useNova();
-  assert.equal(g.novas, 0);
+  assert.equal(g.novas, GAME.startingNovas - 1);
   assert.equal(g.enemyBullets.length, 0);
   assert.equal(e.dead, true, 'close enemy destroyed');
+});
+test('missed pod cluster queues a retry in the next wave', () => {
+  const g = invincible(new Game({ seed: 31 }));
+  g.startRun();
+  g.spawnPodCluster();
+  assert.ok(g.podCluster);
+  // Simulate the whole cluster scrolling past the bottom.
+  for (const pod of g.podCluster.pods) {
+    pod.dead = true;
+    pod.missed = true;
+    g.podCluster.missed += 1;
+  }
+  g.updatePods(1 / 60);
+  assert.equal(g.podCluster, null);
+  assert.equal(g.podRetry, true, 'retry flag set when a cluster is missed');
+  // A wave without a scheduled pod cluster should still spawn one.
+  g.beginWave(2);
+  assert.ok(g.podCluster, 'retry cluster spawned next wave');
+  assert.equal(g.podRetry, false);
+});
+test('first wave is shorter to get players into the action faster', () => {
+  const plan = createStage(1, 77);
+  const groups = plan.waves[0].spawns.length;
+  assert.ok(groups <= 3, 'first wave has at most 3 groups, got ' + groups);
+  assert.ok(plan.waves[0].duration <= 22, 'first wave should be short');
 });
 test('extra life thresholds award lives', () => {
   const g = invincible(new Game({ seed: 17 }));

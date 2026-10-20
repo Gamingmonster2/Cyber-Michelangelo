@@ -7,7 +7,7 @@
 **Simulation:** fixed 1/60 s timestep, DOM-free `Game` state machine
 **Reference:** *Terra Cresta* (Nichibutsu, 1985) — modular docking, formation split, flaming Phoenix
 **Art direction:** “digital Renaissance in deep space” — marble, gold leaf, neon circuitry, pixel art
-**Version:** 1.0.0
+**Version:** 1.1.0
 
 ---
 
@@ -114,7 +114,7 @@ Rules:
 
 When **all four pieces are docked**, pressing Transform ignites the **Phoenix**:
 
-- Duration **7.5 s**, full invulnerability.
+- Duration **8.5 s**, full invulnerability.
 - Contact with enemies instantly destroys them; all enemy bullets are erased on ignition.
 - Fires a triple **flame stream** (2 dmg, 4 pierces, every 0.095 s).
 - Doubles score gained from kills; grants a one-off +2 500 activation bonus.
@@ -128,7 +128,7 @@ This gives the Phoenix a real cost and keeps the assembly loop interesting acros
 
 | Stat | Value |
 | --- | --- |
-| Start charges | 1 (max 3) |
+| Start charges | 2 (max 3) |
 | Effect | Clear all enemy bullets; 60 dmg to boss; 30 + 2×stage dmg to all enemies in 140 px; 1.3 s invulnerability; screen flash + shake |
 | Sources | Start of run, bosses (+1), score milestones, Goliath drops (22 %), pickup drops |
 | UI | `NOVA ✦ ×N` in the HUD |
@@ -177,7 +177,8 @@ On death: 3.2 s explosion sequence, screen flash, +stage clear bonus, one Nova a
 - Each stage: **5 procedural waves** + boss. Themes cycle: **THE MARBLE GARDENS → THE NEON CATACOMBS → THE GRID CATHEDRAL → repeat**.
 - Waves are generated deterministically from `hashSeed(runSeed, stage, 'waves')` (`src/game/waves.js`), so a given seed + stage always produces the same encounter.
 - Wave templates: `PATROL`, `STRIKE`, `BARRAGE`, `ELITE`, `ONSLAUGHT` with formation patterns `line`, `v`, `snake`, `column`, `pair`.
-- Pod clusters are scheduled on waves 2 and 4; if all modules are owned, a cleared cluster pays a relic bonus (+900 and a gold gem).
+- Pod clusters are scheduled on waves 1, 2 and 4; a **missed cluster is retried on the following wave** instead of costing a whole stage. If all modules are owned, a cleared cluster pays a relic bonus (+900 and a gold gem).
+- New players get a **first-run tutorial line** for the first 18 s of stage 1 explaining the pod → module loop (and later the split key).
 - Wave clear bonus = 300 + 50 × stage. Stage clear = 2 500 × stage.
 - **Loop scaling** (`DIFFICULTY`):
   - `enemyHp = min(7, 1 + 0.16·(stage−1) + 0.40·(loop−1))`

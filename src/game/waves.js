@@ -15,7 +15,7 @@ import {
 const WAVE_BLUEPRINTS = [
   {
     tag: 'PATROL',
-    budget: 3,
+    budget: 2,
     pool: ['striker', 'wraith', 'vesper'],
     formations: ['line', 'v', 'snake'],
     heavyChance: 0.05,

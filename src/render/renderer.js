@@ -210,6 +210,27 @@ export class Renderer {
     drawBanner(ctx, game);
     drawPopups(ctx, game);
     drawTouchControls(ctx, game, input && input.isTouch);
+
+    // First-run guidance: teach the pod → module loop in the first seconds.
+    if (game.scene === 'playing' && game.stage === 1 && game.tutorialTimer > 0 && !game.player.hasAllModules) {
+      const fadeIn = Math.min(1, (18 - game.tutorialTimer) / 1.2);
+      const fadeOut = Math.min(1, game.tutorialTimer / 1.5);
+      const alpha = Math.max(0, Math.min(1, fadeIn * fadeOut));
+      if (alpha > 0.02) {
+        const msg = game.player.modules.length === 0
+          ? 'SHOOT THE 4 GROUND PODS TO FREE A MODULE'
+          : 'MODULES ARE SHIELDS · PRESS X TO SPLIT';
+        const w = measureText(msg, { scale: 1, spacing: 0 }).w;
+        ctx.globalAlpha = alpha * 0.9;
+        rect(ctx, 120 - w / 2 - 4, 40, w + 8, 11, 'rgba(4,3,10,0.8)');
+        hline(ctx, 120 - w / 2 - 4, 40, w + 8, withAlpha(P.cyanSh, 0.5));
+        drawText(ctx, msg, 120, 42, {
+          align: 'center', scale: 1, spacing: 0, color: P.cyanHi,
+          shadow: { x: 1, y: 1, color: 'rgba(0,0,0,0.8)' },
+        });
+        ctx.globalAlpha = 1;
+      }
+    }
   }
 
   /* ---------------------------------------------------------------- */
@@ -230,6 +251,9 @@ export class Renderer {
     const prevAlpha = ctx.globalAlpha;
     if (blink) ctx.globalAlpha = 0.35;
 
+    // Contact shadow + hero halo for separation from the background.
+    circle(ctx, p.x, p.y + 12, 9, withAlpha(P.black, 0.3));
+    glow(ctx, p.x, p.y, 20, P.cyan, 0.07);
     this.drawPlayerShadow(ctx, p);
     const modules = p.moduleWorldPositions();
 
@@ -267,7 +291,7 @@ export class Renderer {
       const sprite = this.sprites.modules[m.id];
       const bob = p.formationActive ? Math.sin(this.clock * 6 + m.x) * 0.5 : 0;
       glow(ctx, m.x, m.y, 8, def.color, m.flying ? 0.18 : 0.1);
-      drawSprite(ctx, sprite, m.x, m.y + bob);
+      drawSprite(ctx, sprite, m.x, m.y + bob, { outline: P.outline });
       if (p.hitPulse > 0.5) {
         drawSprite(ctx, sprite, m.x, m.y + bob, { flash: true, alpha: p.hitPulse });
       }
@@ -285,7 +309,7 @@ export class Renderer {
     if (Math.random() < 0.35) this.spawnFlame(p.x + (Math.random() - 0.5) * 5, engineY + 4);
 
     // Core craft.
-    drawSprite(ctx, this.sprites.player, p.x, p.y);
+    drawSprite(ctx, this.sprites.player, p.x, p.y, { outline: P.outline });
     // Cockpit shine.
     rect(ctx, p.x - 1, p.y - 5, 2, 3, withAlpha(P.white, 0.6));
     rect(ctx, p.x - 1, p.y - 5, 1, 1, P.white);
@@ -417,14 +441,13 @@ export class Renderer {
       if (e.flash > 0) {
         drawSprite(ctx, sprite, e.x, e.y, { flash: true, alpha: Math.min(1, e.flash) });
       }
-      // Engine / eye glints.
+      // Engine / eye glints (always visible for readability).
       const glint = e.kind === 'striker' || e.kind === 'seraph' ? P.greenHi
         : e.kind === 'lance' ? P.violet
           : e.kind === 'aegis' ? P.cyanHi : P.magentaHi;
-      if (Math.sin(this.clock * 3 + e.uid) > 0.55) {
-        rect(ctx, e.x - 1, e.y - 1, 2, 2, glint);
-        glow(ctx, e.x, e.y - 1, 4, glint, 0.4);
-      }
+      const pulse = 0.55 + 0.45 * Math.sin(this.clock * 4 + e.uid);
+      rect(ctx, e.x - 1, e.y - 1, 2, 2, glint);
+      glow(ctx, e.x, e.y - 1, 4, glint, 0.35 + 0.2 * pulse);
       if (e.kind === 'goliath') {
         rect(ctx, e.x - 6, e.y + 8, 2, 2, withAlpha(P.magenta, 0.6));
         rect(ctx, e.x + 5, e.y + 8, 2, 2, withAlpha(P.magenta, 0.6));
@@ -580,9 +603,10 @@ export class Renderer {
         circle(ctx, b.x, b.y - 1, 1, P.marbleHi);
       } else {
         const h = b.h || 5;
-        glow(ctx, b.x, b.y, 5, color, 0.35);
-        rect(ctx, b.x - 0.5, b.y - h / 2, 2, h, color);
-        rect(ctx, b.x - 0.5, b.y - h / 2, 1, 2, P.white);
+        glow(ctx, b.x, b.y, 6, color, 0.4);
+        rect(ctx, b.x - 1, b.y - h / 2 - 2, 3, h + 2, withAlpha(color, 0.5));
+        rect(ctx, b.x - 1, b.y - h / 2, 3, h, color);
+        rect(ctx, b.x - 0.5, b.y - h / 2, 1.5, Math.max(2, h - 2), P.white);
       }
     }
   }
@@ -591,7 +615,8 @@ export class Renderer {
     for (const b of game.enemyBullets) {
       const color = COLORS[b.color] || P.magenta;
       const r = b.r || 2;
-      glow(ctx, b.x, b.y, r * 4, color, 0.35);
+      glow(ctx, b.x, b.y, r * 4, color, 0.4);
+      circle(ctx, b.x, b.y, r + 1, withAlpha(P.outline, 0.9));
       circle(ctx, b.x, b.y, r, color);
       circle(ctx, b.x - 0.5, b.y - 0.5, Math.max(0.6, r - 1), P.white);
     }
