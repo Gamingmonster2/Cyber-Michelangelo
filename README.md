@@ -45,6 +45,23 @@ The game is a pure static site — perfect for **Cloudflare Pages** and later a 
 
 `_headers` (security/caching headers), `_redirects` (`/play` → `/`), and a themed `404.html` are included. `server.mjs` is only for local development and is not required in production.
 
+#### Deploy without the dashboard (Direct Upload API)
+
+A zero-dependency deploy script is included — ideal for CI or for hosting without connecting GitHub:
+
+```bash
+# token needs "Account → Cloudflare Pages → Edit"
+export CLOUDFLARE_API_TOKEN=...        # Windows: $env:CLOUDFLARE_API_TOKEN="..."
+export CLOUDFLARE_ACCOUNT_ID=...
+
+npm run deploy -- --dry-run   # list the 56 files that will be uploaded
+npm run deploy                # creates the Pages project (first run) + deploys
+```
+
+It prints the deployment URL (`https://<project>.pages.dev`). Add the custom domain once under **Pages → Custom domains** (Cloudflare creates the DNS record + certificate automatically when the zone is on the same account).
+
+> Why Direct Upload matters here: the current live mirror (`ly.id.ly`) is fronted by Cloudflare's proxy, and GitHub Pages serves JS with a 4-hour `max-age`. Cloudflare Pages respects this repo's `_headers` (`must-revalidate`), so every deploy becomes visible immediately.
+
 ---
 
 ## Controls · التحكم
