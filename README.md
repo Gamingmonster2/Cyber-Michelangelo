@@ -4,6 +4,11 @@
 
 لعبة إطلاق نار عمودية بأسلوب البكسل آرت، مستوحاة من *Terra Cresta* الكلاسيكية، بُنيت بمساعدة الذكاء الاصطناعي وبدون أي مكتبات خارجية.
 
+### ▶ Play the live build · جرّبها الآن
+
+**<https://ly.id.ly/Cyber-Michelangelo/>** — deployed straight from this repository (GitHub Pages mirror).
+A Cloudflare Pages deployment with a custom domain is planned next.
+
 ![Title screen](screenshots/title.png)
 
 ---
@@ -24,7 +29,7 @@ Then open <http://127.0.0.1:5173> in any modern browser. That's it.
 
 The game is a pure static site — perfect for **Cloudflare Pages** and later a custom domain:
 
-1. Push this repository to GitHub (done).
+1. Push this repository to GitHub.
 2. In the Cloudflare dashboard → **Workers & Pages → Create → Pages → Connect to Git**, choose the `Cyber-Michelangelo` repository.
 3. Settings:
    - **Framework preset:** `None`
