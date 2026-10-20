@@ -10,6 +10,7 @@ import { InputManager } from './core/input.js';
 import { buildSprites } from './render/sprites.js';
 import { Renderer } from './render/renderer.js';
 import { Game } from './game/game.js';
+import { VERSION } from './game/config.js';
 import { loadSettings, saveSettings } from './core/storage.js';
 import { drawText } from './render/pixelfont.js';
 import { P } from './render/palette.js';
@@ -324,7 +325,7 @@ function runSelfTest() {
   });
 
   const ok = results.every((r) => r.ok);
-  writeSelfTest({ ok, results, build: 'cyber-michelangelo', time: new Date().toISOString() });
+  writeSelfTest({ ok, version: VERSION, results, build: 'cyber-michelangelo', time: new Date().toISOString() });
   return ok;
 }
 
@@ -412,6 +413,7 @@ window.__CM__ = {
   input,
   audio,
   settings,
+  version: VERSION,
   snapshot: () => game.snapshot(),
   advance: (seconds, fire = true) => {
     game.advance(seconds, (t) => ({ x: Math.sin(t * 1.3) * 0.7, y: 0, fire }));

@@ -6,6 +6,9 @@ import { P, THEMES, themeForStage, loopForStage } from '../render/palette.js';
 
 export const VIEW = { w: 240, h: 420 };
 
+/** Game version — shown by the browser self-test so deployments can be verified. */
+export const VERSION = '1.1.0';
+
 /** Playfield bounds (HUD occupies the top strip). */
 export const FIELD = {
   left: 8,
