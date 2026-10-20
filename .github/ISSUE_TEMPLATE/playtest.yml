@@ -1,0 +1,35 @@
+---
+name: 🎮 Playtest report
+about: Report a bug, balance issue or feel note from playing the live build
+title: "[Playtest] "
+labels: playtest
+---
+
+**Build tested / النسخة:** (e.g. https://ly.id.ly/Cyber-Michelangelo/ @ v1.0.0)
+
+**Device & browser / الجهاز والمتصفح:**
+- OS:
+- Browser + version:
+- Input: keyboard / gamepad / touch
+- Screen size:
+
+**What happened / ماذا حدث؟**
+
+
+**What did you expect? / ماذا توقعت؟**
+
+
+**Steps to reproduce / خطوات التكرار**
+1.
+2.
+3.
+
+**Screenshot or clip / لقطة أو مقطع** (drag & drop here)
+
+
+**Feel & balance notes / ملاحظات إحساس وتوازن**
+- Difficulty (too easy / just right / too hard):
+- Ship readability (1-5):
+- Module / formation / Phoenix feel:
+- Audio balance:
+- Other notes:

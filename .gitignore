@@ -15,3 +15,6 @@ Thumbs.db
 # editor
 .vscode/
 .idea/
+
+# CI workflow is kept locally until the GitHub token has the `workflow` scope
+.github/workflows/
