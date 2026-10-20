@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+    <meta name="theme-color" content="#05040c" />
+    <meta name="description" content="Cyber Michelangelo — a digital-Renaissance pixel-art vertical shoot 'em up inspired by Terra Cresta (1985). Docking modules, formation splits, the flaming Phoenix and the Nova bomb. Built with AI assistance." />
+    <title>Cyber Michelangelo · سايبر مايكل أنجلو</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='10' fill='%2305040c'/%3E%3Cpath d='M32 8l6 14 15 2-11 11 3 15-13-8-13 8 3-15L11 24l15-2z' fill='%23ffd166'/%3E%3Ccircle cx='32' cy='32' r='4' fill='%235ef2ff'/%3E%3C/svg%3E" />
+  </head>
+  <body>
+    <main id="stage-wrap">
+      <div id="frame">
+        <canvas id="game" width="480" height="840" aria-label="Cyber Michelangelo game canvas"></canvas>
+        <div id="boot" role="status" aria-live="polite">
+          <div class="boot-star">✦</div>
+          <h1 class="boot-logo"><span>CYBER</span>MICHELANGELO</h1>
+          <p class="boot-ar" lang="ar" dir="rtl">سايبر مايكل أنجلو</p>
+          <p class="boot-status" id="boot-status">Forging the digital Renaissance…</p>
+        </div>
+        <noscript>
+          <div class="boot-fallback">JavaScript is required to play Cyber Michelangelo.</div>
+        </noscript>
+      </div>
+      <footer id="page-footer">
+        <span>Inspired by <em>Terra Cresta</em> (Nichibutsu, 1985) · Built with AI assistance</span>
+        <span class="dots" aria-hidden="true">·</span>
+        <span lang="ar" dir="rtl">مستوحاة من لعبة Terra Cresta الكلاسيكية</span>
+        <span class="keys">Arrows move · Z/Space fire · X transform · B nova · P pause · M mute</span>
+      </footer>
+    </main>
+    <script type="module" src="/src/main.js"></script>
+  </body>
+</html>

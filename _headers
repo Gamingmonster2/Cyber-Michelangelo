@@ -1,0 +1,18 @@
+/*
+  X-Content-Type-Options: nosniff
+  X-Frame-Options: SAMEORIGIN
+  Referrer-Policy: strict-origin-when-cross-origin
+  Permissions-Policy: fullscreen=(self), gamepad=(self), microphone=(), camera=()
+  Cache-Control: public, max-age=0, must-revalidate
+
+/*.js
+  Cache-Control: public, max-age=0, must-revalidate
+
+/*.css
+  Cache-Control: public, max-age=0, must-revalidate
+
+/screenshots/*
+  Cache-Control: public, max-age=86400
+
+/docs/reference/*
+  Cache-Control: public, max-age=86400

@@ -1,0 +1,21 @@
+{
+  "name": "cyber-michelangelo",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Cyber Michelangelo — سايبر مايكل أنجلو — a zero-dependency HTML5 Canvas vertical shmup inspired by Terra Cresta (1985).",
+  "scripts": {
+    "start": "node server.mjs",
+    "dev": "node server.mjs",
+    "test": "node tests/smoke.mjs",
+    "check": "node tests/syntax.mjs"
+  },
+  "keywords": [
+    "shmup",
+    "html5",
+    "canvas",
+    "terra-cresta",
+    "game"
+  ],
+  "license": "MIT"
+}

@@ -1,0 +1,17 @@
+# dependencies (this project intentionally has none)
+node_modules/
+
+# local tooling & archives (not shipped)
+research/
+docs/reference/*.psd
+.tools/
+.dsh-tmp/
+
+# logs & OS files
+*.log
+.DS_Store
+Thumbs.db
+
+# editor
+.vscode/
+.idea/

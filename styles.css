@@ -1,0 +1,255 @@
+/* ============================================================
+   Cyber Michelangelo — page shell.
+   The entire game renders inside <canvas>; this file only frames it.
+   ============================================================ */
+:root {
+  --bg: #05040c;
+  --bg2: #0b0818;
+  --marble: #f4eee0;
+  --gold: #ffd166;
+  --cyan: #5ef2ff;
+  --magenta: #ff6fc1;
+  --ink: #0a0816;
+  --frame-glow: rgba(94, 242, 255, 0.35);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  background: var(--bg);
+  color: var(--marble);
+  font-family: 'Segoe UI', 'Noto Sans', 'Helvetica Neue', Arial, sans-serif;
+  overflow: hidden;
+  overscroll-behavior: none;
+}
+
+body::before {
+  /* Ambient page light behind the cabinet. */
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse 55% 60% at 50% 42%, rgba(79, 240, 255, 0.09), transparent 62%),
+    radial-gradient(ellipse 40% 45% at 82% 12%, rgba(255, 95, 176, 0.07), transparent 60%),
+    radial-gradient(ellipse 45% 50% at 12% 88%, rgba(255, 209, 102, 0.06), transparent 60%),
+    linear-gradient(180deg, var(--bg2), var(--bg) 55%);
+  z-index: -2;
+}
+
+body::after {
+  /* Fine star dust on the page. */
+  content: '';
+  position: fixed;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(1px 1px at 18% 22%, rgba(255, 255, 255, 0.35), transparent),
+    radial-gradient(1px 1px at 72% 14%, rgba(255, 255, 255, 0.25), transparent),
+    radial-gradient(1px 1px at 44% 68%, rgba(255, 255, 255, 0.18), transparent),
+    radial-gradient(1px 1px at 88% 56%, rgba(255, 255, 255, 0.22), transparent),
+    radial-gradient(1px 1px at 9% 79%, rgba(255, 255, 255, 0.16), transparent);
+  background-size: 340px 340px;
+  opacity: 0.8;
+  z-index: -1;
+}
+
+#stage-wrap {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: max(8px, 1.6vh);
+  padding: max(8px, 1.4vh) max(8px, 1.4vw);
+}
+
+/* The cabinet: aspect-locked 480 × 720, sized by JS to fit the viewport. */
+#frame {
+  position: relative;
+  width: 480px;
+  height: 840px;
+  aspect-ratio: 4 / 7;
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 12px;
+  cursor: crosshair;
+  overflow: hidden;
+  background: #05040c;
+  box-shadow:
+    0 0 0 1px rgba(255, 209, 102, 0.22),
+    0 0 0 5px rgba(10, 8, 22, 0.85),
+    0 0 42px rgba(79, 240, 255, 0.16),
+    0 26px 80px rgba(0, 0, 0, 0.75);
+  touch-action: none;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-tap-highlight-color: transparent;
+}
+
+#frame::after {
+  /* Subtle glass reflection + inner vignette above the canvas. */
+  content: '';
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  border-radius: inherit;
+  background:
+    linear-gradient(155deg, rgba(255, 255, 255, 0.05) 0%, transparent 28%, transparent 72%, rgba(0, 0, 0, 0.22) 100%),
+    radial-gradient(ellipse 120% 100% at 50% 50%, transparent 60%, rgba(0, 0, 0, 0.35) 100%);
+  mix-blend-mode: screen;
+}
+
+#game {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+  image-rendering: pixelated;
+  outline: none;
+}
+
+/* Boot / loading overlay until the first frame is ready. */
+#boot {
+  position: absolute;
+  inset: 0;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  background:
+    radial-gradient(ellipse 70% 55% at 50% 45%, rgba(79, 240, 255, 0.1), transparent 65%),
+    linear-gradient(180deg, #0b0817, #05040c);
+  transition: opacity 520ms ease, visibility 520ms;
+}
+
+#boot.hidden {
+  opacity: 0;
+  visibility: hidden;
+}
+
+.boot-star {
+  color: var(--gold);
+  font-size: 34px;
+  animation: boot-pulse 1.5s ease-in-out infinite;
+  filter: drop-shadow(0 0 12px rgba(255, 209, 102, 0.65));
+}
+
+.boot-logo {
+  margin: 0;
+  font-family: 'Bahnschrift', 'Segoe UI', Arial, sans-serif;
+  font-weight: 800;
+  letter-spacing: 0.14em;
+  line-height: 0.95;
+  font-size: clamp(24px, 6vw, 40px);
+  text-align: center;
+  color: transparent;
+  background: linear-gradient(180deg, #fff7e0 8%, var(--gold) 46%, #b07a1c 78%, #ffe9a8 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  filter: drop-shadow(0 2px 0 rgba(0, 0, 0, 0.6)) drop-shadow(0 0 22px rgba(255, 209, 102, 0.28));
+  display: flex;
+  flex-direction: column;
+}
+
+.boot-logo span {
+  font-size: 0.48em;
+  letter-spacing: 0.52em;
+  margin-bottom: 2px;
+  color: #bfefff;
+  background: none;
+  -webkit-text-fill-color: #bfefff;
+  text-shadow: 0 0 14px rgba(79, 240, 255, 0.7);
+}
+
+.boot-ar {
+  margin: 2px 0 0;
+  font-size: clamp(14px, 3.4vw, 19px);
+  color: #d9cfa8;
+  letter-spacing: 0.02em;
+  text-shadow: 0 0 16px rgba(255, 209, 102, 0.25);
+}
+
+.boot-status {
+  margin: 16px 0 0;
+  font-size: 12px;
+  letter-spacing: 0.22em;
+  text-transform: uppercase;
+  color: #7c89a8;
+  animation: boot-status 2s ease-in-out infinite;
+}
+
+.boot-fallback {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  text-align: center;
+  color: #ffb3b3;
+}
+
+@keyframes boot-pulse {
+  0%, 100% { transform: scale(1) rotate(0deg); opacity: 0.85; }
+  50% { transform: scale(1.16) rotate(45deg); opacity: 1; }
+}
+
+@keyframes boot-status {
+  0%, 100% { opacity: 0.45; }
+  50% { opacity: 1; }
+}
+
+#page-footer {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 6px 10px;
+  max-width: 760px;
+  font-size: 11px;
+  letter-spacing: 0.045em;
+  color: #6e7899;
+  text-align: center;
+  padding-bottom: env(safe-area-inset-bottom, 0);
+}
+
+#page-footer em {
+  color: #c9b06a;
+  font-style: normal;
+}
+
+#page-footer .dots {
+  opacity: 0.4;
+}
+
+#page-footer .keys {
+  color: #556180;
+}
+
+@media (max-height: 900px) {
+  #page-footer { display: none; }
+}
+
+@media (max-width: 640px) {
+  #page-footer { display: none; }
+  #frame { border-radius: 0; }
+}
+
+/* Portrait phones: fill height, keep aspect. */
+@media (max-aspect-ratio: 4/7) {
+  #stage-wrap { padding: 0; gap: 0; }
+  #frame { border-radius: 0; box-shadow: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .boot-star, .boot-status { animation: none; }
+}
