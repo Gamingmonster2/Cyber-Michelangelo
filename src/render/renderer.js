@@ -129,6 +129,7 @@ export class Renderer {
           hiScore: game.hiScore,
           bg: this.bgHD,
           scale: this.screenScale,
+          backdropOnly: true,
         });
         if (game.scene === 'howto') drawHowto(ctx, game);
         else if (game.scene === 'credits') drawCredits(ctx, game, game.time);

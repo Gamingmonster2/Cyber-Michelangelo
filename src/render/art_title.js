@@ -117,7 +117,7 @@ function drawHeroBeams(ctx, t, hero) {
 /* ------------------------------------------------------------------ */
 
 export function drawTitleHD(ctx, time, opts = {}) {
-  const { menuIndex = 0, hiScore = 0, bg = null, scale = 2 } = opts;
+  const { menuIndex = 0, hiScore = 0, bg = null, scale = 2, backdropOnly = false } = opts;
   const theme = THEMES[0];
 
   if (bg) {
@@ -150,6 +150,9 @@ export function drawTitleHD(ctx, time, opts = {}) {
   glow(ctx, hero.x, hero.y + 12, 26, P.cyan, 0.3);
   ctx.restore();
   drawPlayerCraftHD(ctx, hero, time);
+
+  // Lightweight mode for menu overlays: no logo/menu/footer chrome.
+  if (backdropOnly) return;
 
   // Tagline.
   setFont(ctx, 4.6, 700, FONT, 3.2);
