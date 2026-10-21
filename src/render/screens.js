@@ -203,6 +203,8 @@ export function drawCredits(ctx, game, time) {
     ['ORIGINAL ART · MUSIC · SFX', P.cyan, 1],
     ['PROCEDURAL, ZERO-ASSET ENGINE', P.marbleMid, 1],
     ['BUILT WITH AI ASSISTANCE', P.orangeHi, 1],
+    ['OPTIONAL 3D MODE · THREE.JS (MIT)', P.cyan, 1],
+    ['3D MODELS BUILT PROCEDURALLY', P.marbleSh, 1],
     ['WITH RESPECT TO THE ORIGINAL', P.marbleSh, 1],
     ['HALL OF SHOOTERS', P.marbleSh, 1],
   ];

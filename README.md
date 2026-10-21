@@ -1,23 +1,30 @@
 # Cyber Michelangelo · سايبر مايكل أنجلو
 
-**A digital-Renaissance HD-2D vertical shoot 'em up — inspired by *Terra Cresta* (1985), built with AI assistance, zero dependencies.**
+**A digital-Renaissance HD-2D vertical shoot 'em up — inspired by *Terra Cresta* (1985), with an optional real-time 3D mode. Built with AI assistance, zero runtime dependencies.**
 
-لعبة إطلاق نار عمودية بأسلوب **HD-2D**: فن متجهي عالي الدقة فوق خلفيات نهضوية متحركة، مستوحاة من *Terra Cresta* الكلاسيكية، بُنيت بمساعدة الذكاء الاصطناعي وبدون أي مكتبات خارجية.
+لعبة إطلاق نار عمودية بأسلوب **HD-2D**: فن متجهي عالي الدقة فوق خلفيات نهضوية متحركة، مستوحاة من *Terra Cresta* الكلاسيكية — مع **وضع ثلاثي الأبعاد اختياري** يُختار من شاشة البداية. بُنيت بمساعدة الذكاء الاصطناعي وبدون أي مكتبات وقت التشغيل.
 
 ### ▶ Play the live build · جرّبها الآن
 
 **<https://ly.id.ly/Cyber-Michelangelo/>** — deployed straight from this repository (GitHub Pages mirror).
 A Cloudflare Pages deployment with a custom domain is planned next.
 
-### What's new in v1.2 — the HD-2D visual overhaul
+### What's new in v1.3 — optional 3D mode
 
-- **Device-resolution render pipeline:** the 240×420 gameplay space is now rasterised at 2–4× device scale, so vector ships, gradients and glows stay crisp on every screen and DPR.
-- **Redrawn hero craft:** layered armoured wings, glass canopy, gold nose blade, animated engines, banking and visible docking clamps for all four modules.
-- **All eight enemies redrawn** in HD vector art (plating, reactor cores, animated engines) plus smooth gradient energy bullets.
-- **HD parallax environments** for all three themes: floating temple ruins, bioluminescent catacombs and the rose-window grid cathedral, with atmospheric depth, dust and light rays.
-- **HD Colossus boss:** engraved marble war-mask, crown, tracking eyes, floating fists and growing battle damage.
-- **Modern HUD, title screen and all menus:** glass panels, gradient typography, vector hearts, module capsules, boss bar and countdown ring — no more bitmap UI.
-- **Mechanics untouched:** the same 41 logic tests and 16 in-browser checks stay green.
+- **Real 3D world (three.js):** a second renderer draws the same simulation as a WebGL scene under the HUD — 3D hero craft with module pods, all eight enemies rebuilt as low-poly models, a 3D Colossus with marble mask and floating fists, relic pods, pickups, procedural temples/crystals/spires, starfield, fog and dynamic lights.
+- **Pick your style at the title screen:** new **RENDER: HD-2D / 3D** menu row (also in *Options → RENDERER*); the choice is saved locally.
+- **Classic version untouched:** HD-2D remains the default and the fallback. If WebGL is unavailable the game automatically switches back and tells you.
+- **Zero runtime dependencies preserved:** three.js r160 is vendored locally (`vendor/three`, MIT) and only downloaded by the browser when 3D is actually enabled — the classic path loads instantly and works offline.
+
+<details>
+<summary>v1.2 — HD-2D visual overhaul</summary>
+
+- Device-resolution render pipeline (2–4×) with vector hero craft, docking modules, eight HD enemies, HD bullets, HD Colossus boss and HD pods/pickups.
+- Prerendered HD parallax environments for all three themes with atmospheric depth, stars, dust, light rays, rose window and grid floor.
+- New HD HUD, title screen with live hero diorama, and HD how-to-play / credits / options / pause / game-over screens.
+- Mechanics untouched; 41 logic tests + 16 in-browser checks green.
+
+</details>
 
 <details>
 <summary>v1.1 changes (kept for history)</summary>
@@ -67,7 +74,7 @@ A zero-dependency deploy script is included — ideal for CI or for hosting with
 export CLOUDFLARE_API_TOKEN=...        # Windows: $env:CLOUDFLARE_API_TOKEN="..."
 export CLOUDFLARE_ACCOUNT_ID=...
 
-npm run deploy -- --dry-run   # list the 56 files that will be uploaded
+npm run deploy -- --dry-run   # list the files that will be uploaded
 npm run deploy                # creates the Pages project (first run) + deploys
 ```
 
@@ -89,7 +96,7 @@ It prints the deployment URL (`https://<project>.pages.dev`). Add the custom dom
 | Mute | `M` | — | — |
 | Fullscreen | `F` | — | — |
 
-Menus: `↑ ↓` + `Enter`; `Esc` = back. Auto-fire can also be enabled for keyboard in **Options**.
+Menus: `↑ ↓` + `Enter`; `Esc` = back. Auto-fire can also be enabled for keyboard in **Options**. The renderer style (**HD-2D / 3D**) is picked from the title menu (`RENDER:` row) or **Options → RENDERER** and remembered between sessions.
 
 ---
 
@@ -157,6 +164,16 @@ Wave clears, boss kills, pod clusters, Phoenix bonuses and a kill-chain multipli
 | --- | --- |
 | ![Catacombs](screenshots/catacombs.png) | ![Cathedral](screenshots/cathedral.png) |
 
+**Optional 3D mode** (title → `RENDER: 3D`, or Options → RENDERER):
+
+| 3D gameplay | 3D Colossus |
+| --- | --- |
+| ![3D gameplay](screenshots/3d-game.png) | ![3D boss](screenshots/3d-boss.png) |
+
+| 3D catacombs | Title with renderer toggle |
+| --- | --- |
+| ![3D catacombs](screenshots/3d-catacombs.png) | ![3D title](screenshots/3d-title.png) |
+
 ---
 
 ## Project structure
@@ -196,10 +213,14 @@ src/
     art_title.js      HD title screen with live hero diorama
     ui_hd.js          HD HUD, boss bar, banners, popups, touch controls
     screens.js        HD how-to-play, credits, options, pause, game over
-    renderer.js       full renderer + particle/FX system
+    renderer.js       full renderer + particle/FX system, optional 3D switch
+  render3d/
+    renderer3d.js     optional three.js WebGL renderer (lazy-loaded, own canvas)
   ui/touch.js         touch-control layout shared by input & renderer
+vendor/
+  three/              three.js r160 ES module + MIT license (only loaded for 3D)
 tests/
-  smoke.mjs           41 pure-logic tests (Node, no DOM)
+  smoke.mjs           43 pure-logic tests (Node, no DOM)
   syntax.mjs          parse-check every source module
 tools/capture.ps1     headless-Edge screenshot helper used for visual verification
 tools/deploy-cloudflare.mjs  zero-dependency Cloudflare Pages direct upload
@@ -208,14 +229,14 @@ research/             preserved prior Terra Cresta research report site (referen
 ```
 
 ### Architecture in one paragraph
-Simulation is a **DOM-free state machine** (`Game`) updated at a fixed 1/60 s step; rendering, audio and visual FX are injected as small interfaces. The renderer keeps gameplay in a **240×420 logical space** but rasterises into a device-resolution buffer (2–4× depending on screen size / DPR) using vector paths, gradients and cached glow sprites. Ships, enemies, boss, pickups and UI are drawn procedurally (`art_*.js`, `ui_hd.js`); environments are prerendered once per theme at device scale and scrolled as parallax layers (`art_background.js`). Audio is synthesised (`audio.js`), and every world is generated from a seeded RNG. This keeps the game deterministic, testable headlessly, asset-free and offline-capable.
+Simulation is a **DOM-free state machine** (`Game`) updated at a fixed 1/60 s step; rendering, audio and visual FX are injected as small interfaces. The classic renderer keeps gameplay in a **240×420 logical space** but rasterises into a device-resolution buffer (2–4× depending on screen size / DPR) using vector paths, gradients and cached glow sprites. Ships, enemies, boss, pickups and UI are drawn procedurally (`art_*.js`, `ui_hd.js`); environments are prerendered once per theme at device scale and scrolled as parallax layers (`art_background.js`). An **optional third renderer** (`render3d/renderer3d.js`) replays the same state as a three.js WebGL scene on an underlay canvas, while the 2D canvas stays on top as a transparent overlay for bullets, particles and HUD — so both styles share one simulation and the 3D module can be removed without touching the classic game. Audio is synthesised (`audio.js`), and every world is generated from a seeded RNG. This keeps the game deterministic, testable headlessly, asset-free and offline-capable.
 
 ---
 
 ## Verification · التحقق
 
 ```bash
-npm test                    # 41 logic tests, all green
+npm test                    # 43 logic tests, all green
 node tests/syntax.mjs       # every module parses
 ```
 
@@ -232,7 +253,7 @@ node server.mjs
 powershell -File tools/capture.ps1 -Shots "title|?noboot=1;game|?scene=game&sim=26&freeze=1&noboot=1"
 ```
 
-Debug URL hooks: `?scene=game|boss|phoenix|formation|catacombs|cathedral|gameover|howto|credits|options`, `&sim=SECONDS`, `&freeze=1`, `&touch=1`, `&seed=N`, `&mute=1`, `&fps=1`, `&noscanlines=1`.
+Debug URL hooks: `?scene=game|boss|phoenix|formation|catacombs|cathedral|gameover|howto|credits|options`, `&sim=SECONDS`, `&freeze=1`, `&touch=1`, `&seed=N`, `&mute=1`, `&fps=1`, `&noscanlines=1`, and `&style=hd|3d` to force a renderer.
 
 ---
 
@@ -242,6 +263,7 @@ Debug URL hooks: `?scene=game|boss|phoenix|formation|catacombs|cathedral|gameove
 - Series context: ***Moon Cresta*** (1980), ***Terra Cresta*** (1985), ***Sol Cresta*** (2022, PlatinumGames).
 - **Cyber Michelangelo** is an original, non-commercial homage. **No original game code, art, names or audio assets were used** — every pixel and every sound is generated procedurally in this repository.
 - Built with **AI assistance** (DeepSeek agent) for design, code, art and audio.
+- **three.js r160** (MIT License, © 2010-2023 three.js authors) is vendored in `vendor/three` for the optional 3D mode; its license file is kept alongside the module. All 3D models, environments and materials are generated procedurally by this project's code — no third-party art assets are used.
 - The `research/` folder preserves an independent Arabic research report on the *Cresta* series that informed the design; it is reference material and is not required to play.
 
 **License:** MIT.
@@ -252,4 +274,4 @@ Debug URL hooks: `?scene=game|boss|phoenix|formation|catacombs|cathedral|gameove
 
 **سايبر مايكل أنجلو** لعبة شوتر عمودية بأسلوب **HD-2D** — فن متجهي عالي الدقة فوق خلفيات نهضوية متحركة — مستوحاة من *Terra Cresta* (1985):
 سفينة ألفا الأساسية، وأربع وحدات قتالية (بيتا، غاما، دلتا، إبسيلون) تُحرَّر بإسقاط الصوامع الأرضية وتلتحم بالسفينة فتمنحها قوة نارية إضافية وتمتص الضربات بدلاً منك.
-اضغط زر التحويل `X` لتفكيك الوحدات في تشكيلات قتالية مؤقتة (الهلال، التمدد، الحراسة) — القطع منيعة أثناء الانفصال لكن جسم السفينة مكشوف؛ وإذا جمعت القطع الأربع فاضغط `X` لتتحول إلى **طائر العنقاء الناري** الذي لا يُقهر لدقائق. أضف إلى ذلك قنبلة **NOVA** الماسحة للشاشة، ومضاعفات النقاط، وثلاث بيئات متجددة بجرافيك HD، وزعماء مرحلين، وموسيقى ومؤثرات مولّدة رقمياً. تعمل اللعبة بالكامل بدون إنترنت وبدون أي مكتبات، ومختبَرة بـ 41 اختباراً منطقياً وفحوصات بصرية آلية.
+اضغط زر التحويل `X` لتفكيك الوحدات في تشكيلات قتالية مؤقتة (الهلال، التمدد، الحراسة) — القطع منيعة أثناء الانفصال لكن جسم السفينة مكشوف؛ وإذا جمعت القطع الأربع فاضغط `X` لتتحول إلى **طائر العنقاء الناري** الذي لا يُقهر لدقائق. أضف إلى ذلك قنبلة **NOVA** الماسحة للشاشة، ومضاعفات النقاط، وثلاث بيئات متجددة بجرافيك HD، وزعماء مرحلين، وموسيقى ومؤثرات مولّدة رقمياً. **وضع 3D اختياري** (three.js مضمّن محلياً) يُختار من شاشة البداية أو الإعدادات، ويستخدم نفس منطق اللعبة تماماً. تعمل اللعبة بالكامل بدون إنترنت، ومختبَرة بـ 43 اختباراً منطقياً وفحوصات بصرية آلية.

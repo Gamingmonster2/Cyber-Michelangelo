@@ -3,11 +3,11 @@
 **Project:** Cyber Michelangelo · سايبر مايكل أنجلو
 **Genre:** Vertical scrolling shoot 'em up (shmup)
 **Platform:** Web browser — HTML5 Canvas 2D + WebAudio, **zero dependencies**
-**Rendering:** 240 × 420 logical space rasterised at 2–4× device resolution (vector art, gradients, prerendered HD parallax)
+**Rendering:** 240 × 420 logical space rasterised at 2–4× device resolution (vector art, gradients, prerendered HD parallax) + optional three.js 3D renderer
 **Simulation:** fixed 1/60 s timestep, DOM-free `Game` state machine
 **Reference:** *Terra Cresta* (Nichibutsu, 1985) — modular docking, formation split, flaming Phoenix
-**Art direction:** “digital Renaissance in deep space” — HD-2D vector ships, marble, gold leaf and neon over prerendered baroque environments
-**Version:** 1.2.0
+**Art direction:** “digital Renaissance in deep space” — HD-2D vector ships, marble, gold leaf and neon over prerendered baroque environments; optional low-poly 3D mode with the same art direction
+**Version:** 1.3.0
 
 ---
 
@@ -31,6 +31,7 @@
 | HUD strip | top 34 logical px: score, lives, stage; second row NOVA, combo, module capsules |
 | Playfield | y = 34 … 412, x = 8 … 232 |
 | Presentation | HD-2D: smooth vector ships & UI, prerendered background layers, additive glow |
+| Renderer styles | **HD-2D** (default, Canvas2D) · optional **3D** (three.js WebGL underlay, selectable at the title screen) |
 | Post effects | vignette, optional scanlines, integer screen shake, colour flash |
 | Typography | system sans/mono via canvas `fillText` with gradient fills; Arabic lines rendered as crisp HD canvas text |
 
@@ -220,6 +221,7 @@ On death: 3.2 s explosion sequence, screen flash, +stage clear bonus, one Nova a
 - **Pickups (`art_pickups.js`):** marble relic plinths with glowing crystal domes and numerals, target brackets on the piece you still need, energy capsules, faceted gems, Nova orb and heart.
 - **UI (`ui_hd.js`, `screens.js`, `art_title.js`):** glass panels, gradient typography, vector hearts, module capsules, segmented boss bar, countdown ring and a metallic wordmark title screen with a live hero diorama.
 - **Effects:** cached additive glow sprites, gradient energy bullets, particle sparks/smoke/rings/flames, screen shake, colour flash, vignette and optional scanlines.
+- **Optional 3D mode (`src/render3d/renderer3d.js`):** a second renderer replays the same `Game` state as a three.js WebGL scene drawn on an underlay canvas, with the 2D canvas kept on top as a transparent overlay for bullets, particles, HUD and menus. The hero craft, four module pods, all eight enemies, the Colossus (marble mask, crown, glowing eyes, floating fists), relic pods and pickups are low-poly procedural models with emissive cores and engine glows. Environments become true 3D prop fields (floating temples, crystal clusters, gothic spires), a 3D starfield, fog, hemisphere/directional/point lights and a camera-with-player-sway. three.js r160 is vendored locally and lazy-loaded only when the player enables 3D; if WebGL is unavailable the game falls back to HD-2D automatically.
 
 ---
 
@@ -242,6 +244,7 @@ All sound is synthesised at runtime (`src/core/audio.js`): a look-ahead 16th-not
 
 ```
 main.js ──▶ Renderer (device-res buffer → present, VFX, HD-2D art, menus)
+   │           ├──▶ Renderer3D (optional three.js underlay, same Game state)
    │           ▲
    ├──▶ Game ──┘ reads state       Game: scenes, waves, collisions, scoring, lives
    │      │
@@ -257,7 +260,7 @@ main.js ──▶ Renderer (device-res buffer → present, VFX, HD-2D art, menus
 - **Determinism:** seeded RNG (`mulberry32`) for waves and background generation; logic can be advanced headlessly (`game.advance(seconds)`).
 - **Performance:** cached glow/sprite/mask canvases, additive glow sprites instead of `shadowBlur`, particle cap 520, entity caps (260 bullets, ~40 enemies), single 240×420 buffer → 60 fps on modest hardware.
 - **Resilience:** WebAudio starts on first user gesture (autoplay policy), storage failures fall back to memory, the game pauses on tab hide, and `window.onerror` surfaces fatal issues to the self-test DOM.
-- **Testability:** every gameplay module is DOM-free. `tests/smoke.mjs` runs 41 assertions on the real game class; `?selftest=1` runs 16 in-browser rendering checks (HUD pixels, all scenes, all themes, boss, formation, Phoenix).
+- **Testability:** every gameplay module is DOM-free. `tests/smoke.mjs` runs 43 assertions on the real game class; `?selftest=1` runs 17 in-browser rendering checks (HUD pixels, all scenes, all themes, boss, formation, Phoenix, 3D renderer probe).
 
 ---
 
@@ -280,7 +283,7 @@ main.js ──▶ Renderer (device-res buffer → present, VFX, HD-2D art, menus
 | Layer | Command | Result |
 | --- | --- | --- |
 | Module parsing | `node tests/syntax.mjs` | all modules parse |
-| Game logic (41 tests) | `node tests/smoke.mjs` | green: movement, docking, shield buffer, formation, Phoenix, pods, scoring, boss phases, stage flow, game over/continue, 3-minute autopilot stability |
+| Game logic (43 tests) | `node tests/smoke.mjs` | green: movement, docking, shield buffer, formation, Phoenix, pods, scoring, boss phases, stage flow, game over/continue, title/options renderer choice, 3-minute autopilot stability |
 | Browser integration (16 checks) | `/?selftest=1` | green: sprite build, title/gameplay/boss/formation/Phoenix/menu renders, HUD pixels, three themes |
 | Visual QA | `tools/capture.ps1` + headless Edge | 11 scene screenshots reviewed |
 
@@ -288,11 +291,16 @@ main.js ──▶ Renderer (device-res buffer → present, VFX, HD-2D art, menus
 
 ## 15. Changelog & roadmap
 
-### v1.2.0 — HD-2D visual overhaul (current)
+### v1.3.0 — optional 3D mode (current)
+- New optional three.js renderer (`src/render3d/renderer3d.js`): 3D hero craft and module pods, all eight enemies, Colossus with marble mask/floating fists, relic pods, pickups, procedural themed prop fields, starfield, fog and dynamic lighting.
+- Renderer selectable from the title menu (`RENDER: HD-2D / 3D`) and Options → RENDERER; the choice persists and defaults to HD-2D.
+- three.js r160 vendored locally (`vendor/three`, MIT), lazy-loaded only when 3D is enabled; automatic HD-2D fallback when WebGL is unavailable.
+- Classic HD-2D path untouched; +2 logic tests for the renderer choice (43 total) and a 17th browser check probing the 3D renderer.
+
+### v1.2.0 — HD-2D visual overhaul
 - Device-resolution render pipeline (2–4×) with vector hero craft, docking modules, eight HD enemies, HD bullets, HD Colossus boss and HD pods/pickups.
 - Prerendered HD parallax environments for all three themes with atmospheric depth, stars, dust, light rays, rose window and grid floor.
 - New HD HUD, title screen with live hero diorama, and HD how-to-play / credits / options / pause / game-over screens.
-- Bitmap pixel UI and art modules kept in the tree as reference (`sprites.js`, `pixelfont.js`, `hud.js`, `title.js`, `background.js`) for a future “Classic” style option.
 - Mechanics untouched; 41 logic tests + 16 in-browser checks green.
 
 ### v1.1.0 — readability + fairer opening
@@ -302,22 +310,22 @@ main.js ──▶ Renderer (device-res buffer → present, VFX, HD-2D art, menus
 ### v1.0.0 — first playable release
 - Full modular docking, formation split, Phoenix, Nova, endless looped stages + boss, procedural art/audio, 39 initial tests.
 
-### Roadmap — Phase 2: optional 3D renderer
-- A second renderer built on a locally vendored three.js, selectable from the title screen (**CLASSIC 2D / 3D**) and sharing the same DOM-free `Game` simulation.
-- Ship models either built procedurally in code or sourced from documented **CC0** packs; classic version remains the safe fallback and the 3D module can be removed without touching gameplay.
-- After the 3D pass: licensed CC0 audio pass (menu ambience, launch, weapons) with attribution.
+### Roadmap — remaining polish
+- **Audio pass:** licensed CC0 ambience/music/SFX options in addition to the procedural soundtrack, with attribution documented in CREDITS.
+- **3D refinements:** higher-detail models, a 3D title/attract scene, and optional bloom if it stays 60 fps on phones.
+- **Cloudflare Pages deploy:** requires a scoped API token + account id (`npm run deploy`).
 
 ---
 
 ## 16. Credits & attribution
 
-Inspired by **Terra Cresta** (Nichibutsu, 1985) — designed by **Shigeki Fujiwara**, music by **Kenji Yoshida**; series context includes **Moon Cresta** (1980) and **Sol Cresta** (2022, PlatinumGames). Cyber Michelangelo is an original, non-commercial homage; no original code, art, audio or names were used. Built with AI assistance. All art, music and effects are generated procedurally in this repository. License: MIT.
+Inspired by **Terra Cresta** (Nichibutsu, 1985) — designed by **Shigeki Fujiwara**, music by **Kenji Yoshida**; series context includes **Moon Cresta** (1980) and **Sol Cresta** (2022, PlatinumGames). Cyber Michelangelo is an original, non-commercial homage; no original code, art, audio or names were used. Built with AI assistance. All art, music and effects are generated procedurally in this repository. The optional 3D mode uses **three.js r160**, vendored in `vendor/three` under the MIT License (© 2010-2023 three.js authors); all 3D models and environments are original procedural code. License: MIT.
 
 ---
 
 ## ملخص التصميم بالعربية
 
-اللعبة شوتر عمودي بأسلوب البكسل آرت (240×420 بكسل منطقي، بنسبة 4:7) بلا أي مكتبات أو ملفات فنية.
+اللعبة شوتر عمودي بأسلوب **HD-2D** (فن متجهي بدقة الجهاز فوق خلفيات نهضوية متحركة، 240×420 منطقي بنسبة 4:7) بلا أي ملفات فنية خارجية، مع **وضع 3D اختياري** مبني على three.js المضمّن محلياً ويُختار من شاشة البداية.
 تبدأ بسفينة **ألفا** البسيطة، وتحصل على أربع وحدات (**بيتا، غاما، دلتا، إبسيلون**) بإسقاط مجموعات الصوامع الأرضية الأربع، فيمنحك كل التحام قوة نارية إضافية وامتصاصاً لضربة واحدة بدلاً من حياتك.
 زر التحويل `X` يفكك الوحدات في تشكيل مؤقت (حراسة/هلال/تمدد) فتكون الوحدات منيعة والجسم مكشوفاً؛ وإذا كانت القطع الأربع ملتحمة فاضغطه لتتحول إلى **العنقاء** الذي لا يُقهر ويحرق القطع بعد انتهاء مدته. أضف إلى ذلك قنبلة **NOVA** الماسحة للرصاص، ومضاعف النقاط، وثلاث بيئات متجددة (حدائق الرخام، السراديب النيونية، كاتدرائية الشبكة) مع زعيم ثلاثي الأطوار في كل مرحلة ودورات لا نهائية تتصاعد صعوبتها.
-تقنياً: محاكاة ثابتة 60 هرتز، حالة اللعبة مستقلة تماماً عن المتصفح وقابلة للاختبار، وكل الرسم والموسيقى والمؤثرات مولّدة برمجياً من شيفرة المصدر.
+تقنياً: محاكاة ثابتة 60 هرتز، حالة اللعبة مستقلة تماماً عن المتصفح وقابلة للاختبار، وكل الرسم والموسيقى والمؤثرات مولّدة برمجياً من شيفرة المصدر؛ والنسخة الكلاسيكية تعمل دائماً كخيار افتراضي آمن إن لم يتوفر WebGL.
