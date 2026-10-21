@@ -104,6 +104,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   scanlines: true,
   showFps: false,
   renderStyle: 'hd', // 'hd' (HD-2D) | '3d' (optional WebGL renderer)
+  musicStyle: 'chiptune', // 'chiptune' (procedural) | 'cc0' (sampled CC0 soundtrack)
 });
 
 export function loadSettings() {

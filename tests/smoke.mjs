@@ -12,6 +12,7 @@ import {
   ENEMY_TYPES, DIFFICULTY, stageInfo,
 } from '../src/game/config.js';
 import { OPTION_ITEMS } from '../src/game/game.js';
+import { CC0_TRACKS } from '../src/core/audio.js';
 import { RNG, clamp, lerp, formatScore, hashSeed } from '../src/core/math.js';
 import { P } from '../src/render/palette.js';
 import { _resetMemoryStore, getItem, KEYS } from '../src/core/storage.js';
@@ -172,6 +173,25 @@ test('options screen can switch the renderer as well', () => {
   g.update(1 / 60, { confirm: true });
   assert.equal(g.settings.renderStyle, '3d');
 });
+test('music style option switches between chiptune and the CC0 soundtrack', () => {
+  const g = new Game({ seed: 1 });
+  assert.equal(g.settings.musicStyle, 'chiptune');
+  g.goToScene('options');
+  const idx = OPTION_ITEMS.findIndex((o) => o.key === 'musicStyle');
+  assert.ok(idx >= 0, 'MUSIC STYLE option exists');
+  g.optionIndex = idx;
+  g.update(1 / 60, { confirm: true });
+  assert.equal(g.settings.musicStyle, 'cc0');
+  g.update(1 / 60, { confirm: true });
+  assert.equal(g.settings.musicStyle, 'chiptune');
+});
+test('CC0 soundtrack map covers all four music scenes', () => {
+  for (const track of ['title', 'stage', 'boss', 'gameover']) {
+    assert.ok(CC0_TRACKS[track], `missing CC0 track for ${track}`);
+    assert.match(CC0_TRACKS[track], /^assets\/audio\/cc0\/.+\.(ogg|wav)$/);
+  }
+  assert.equal(Object.keys(CC0_TRACKS).length, 4);
+});
 test('how to play / credits / options screens open and close', () => {
   const g = new Game({ seed: 1 });
   g.menuIndex = 1; // HOW TO PLAY
@@ -190,7 +210,8 @@ test('how to play / credits / options screens open and close', () => {
   g.update(1 / 60, { confirm: true });
   assert.equal(g.scene, 'options');
   g.update(1 / 60, { down: true });
-  g.update(1 / 60, { down: true }); // AUTO FIRE
+  const autoIdx = OPTION_ITEMS.findIndex((o) => o.key === 'autoFire');
+  for (let i = 1; i < autoIdx; i++) g.update(1 / 60, { down: true }); // AUTO FIRE
   const before = g.settings.autoFire;
   g.update(1 / 60, { confirm: true });
   assert.equal(g.settings.autoFire, !before);

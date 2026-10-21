@@ -1,20 +1,28 @@
 # Cyber Michelangelo · سايبر مايكل أنجلو
 
-**A digital-Renaissance HD-2D vertical shoot 'em up — inspired by *Terra Cresta* (1985), with an optional real-time 3D mode. Built with AI assistance, zero runtime dependencies.**
+**A digital-Renaissance HD-2D vertical shoot 'em up — inspired by *Terra Cresta* (1985), with an optional real-time 3D mode and a licensed CC0 soundtrack option. Built with AI assistance, zero runtime dependencies.**
 
-لعبة إطلاق نار عمودية بأسلوب **HD-2D**: فن متجهي عالي الدقة فوق خلفيات نهضوية متحركة، مستوحاة من *Terra Cresta* الكلاسيكية — مع **وضع ثلاثي الأبعاد اختياري** يُختار من شاشة البداية. بُنيت بمساعدة الذكاء الاصطناعي وبدون أي مكتبات وقت التشغيل.
+لعبة إطلاق نار عمودية بأسلوب **HD-2D**: فن متجهي عالي الدقة فوق خلفيات نهضوية متحركة، مستوحاة من *Terra Cresta* الكلاسيكية — مع **وضع ثلاثي الأبعاد اختياري** وموسيقى **CC0 مرخّصة اختيارية**؛ كلاهما يُختار من القوائم. بُنيت بمساعدة الذكاء الاصطناعي وبدون أي مكتبات وقت التشغيل.
 
 ### ▶ Play the live build · جرّبها الآن
 
 **<https://ly.id.ly/Cyber-Michelangelo/>** — deployed straight from this repository (GitHub Pages mirror).
 A Cloudflare Pages deployment with a custom domain is planned next.
 
-### What's new in v1.3 — optional 3D mode
+### What's new in v1.4 — licensed CC0 soundtrack
 
-- **Real 3D world (three.js):** a second renderer draws the same simulation as a WebGL scene under the HUD — 3D hero craft with module pods, all eight enemies rebuilt as low-poly models, a 3D Colossus with marble mask and floating fists, relic pods, pickups, procedural temples/crystals/spires, starfield, fog and dynamic lights.
-- **Pick your style at the title screen:** new **RENDER: HD-2D / 3D** menu row (also in *Options → RENDERER*); the choice is saved locally.
-- **Classic version untouched:** HD-2D remains the default and the fallback. If WebGL is unavailable the game automatically switches back and tells you.
-- **Zero runtime dependencies preserved:** three.js r160 is vendored locally (`vendor/three`, MIT) and only downloaded by the browser when 3D is actually enabled — the classic path loads instantly and works offline.
+- **New audio style choice:** *Options → MUSIC STYLE* switches between the original **procedural chiptune** (default, zero assets) and a **licensed CC0 soundtrack** — four sampled tracks for title / stage / boss / game-over, looped through the existing WebAudio mixer.
+- **Fully documented attribution:** authors, track names, source pages and the CC0 1.0 deed are recorded in [`assets/audio/cc0/CREDITS.md`](assets/audio/cc0/CREDITS.md), this README and the in-game Credits screen.
+- **Safe by design:** sampled tracks are only downloaded when chosen, and any missing/undecodable file automatically falls back to the chiptune — audio can never break gameplay.
+- Classic HD-2D and the optional 3D renderer are both untouched by this change.
+
+<details>
+<summary>v1.3 — optional 3D mode</summary>
+
+- Real 3D world (three.js, MIT, vendored locally): 3D hero craft and module pods, all eight enemies, 3D Colossus, pods/pickups, procedural temples/crystals/spires, starfield, fog and dynamic lights.
+- Renderer selectable from the title menu (`RENDER: HD-2D / 3D`) and *Options → RENDERER*; HD-2D remains the default and automatic fallback.
+
+</details>
 
 <details>
 <summary>v1.2 — HD-2D visual overhaul</summary>
@@ -96,7 +104,7 @@ It prints the deployment URL (`https://<project>.pages.dev`). Add the custom dom
 | Mute | `M` | — | — |
 | Fullscreen | `F` | — | — |
 
-Menus: `↑ ↓` + `Enter`; `Esc` = back. Auto-fire can also be enabled for keyboard in **Options**. The renderer style (**HD-2D / 3D**) is picked from the title menu (`RENDER:` row) or **Options → RENDERER** and remembered between sessions.
+Menus: `↑ ↓` + `Enter`; `Esc` = back. Auto-fire can also be enabled for keyboard in **Options**. The renderer style (**HD-2D / 3D**) is picked from the title menu (`RENDER:` row) or **Options → RENDERER**, and the soundtrack (**CHIPTUNE / CC0 MUSIC**) from **Options → MUSIC STYLE** — both remembered between sessions.
 
 ---
 
@@ -188,7 +196,7 @@ src/
     math.js           deterministic RNG, easing, geometry helpers
     storage.js        safe localStorage wrapper + high scores/settings
     input.js          keyboard + gamepad + relative-drag touch
-    audio.js          procedural WebAudio chiptune + 30 SFX (no audio files)
+    audio.js          procedural WebAudio chiptune + 30 SFX, optional CC0 sampled soundtrack
   game/
     config.js         all tunables: player, modules, enemies, boss, scoring, difficulty
     formations.js     pure formation choreography
@@ -217,10 +225,12 @@ src/
   render3d/
     renderer3d.js     optional three.js WebGL renderer (lazy-loaded, own canvas)
   ui/touch.js         touch-control layout shared by input & renderer
+assets/
+  audio/cc0/          optional CC0 soundtrack (4 tracks) + CREDITS.md provenance
 vendor/
   three/              three.js r160 ES module + MIT license (only loaded for 3D)
 tests/
-  smoke.mjs           43 pure-logic tests (Node, no DOM)
+  smoke.mjs           45 pure-logic tests (Node, no DOM)
   syntax.mjs          parse-check every source module
 tools/capture.ps1     headless-Edge screenshot helper used for visual verification
 tools/deploy-cloudflare.mjs  zero-dependency Cloudflare Pages direct upload
@@ -236,7 +246,7 @@ Simulation is a **DOM-free state machine** (`Game`) updated at a fixed 1/60 s st
 ## Verification · التحقق
 
 ```bash
-npm test                    # 43 logic tests, all green
+npm test                    # 45 logic tests, all green
 node tests/syntax.mjs       # every module parses
 ```
 
@@ -253,7 +263,7 @@ node server.mjs
 powershell -File tools/capture.ps1 -Shots "title|?noboot=1;game|?scene=game&sim=26&freeze=1&noboot=1"
 ```
 
-Debug URL hooks: `?scene=game|boss|phoenix|formation|catacombs|cathedral|gameover|howto|credits|options`, `&sim=SECONDS`, `&freeze=1`, `&touch=1`, `&seed=N`, `&mute=1`, `&fps=1`, `&noscanlines=1`, and `&style=hd|3d` to force a renderer.
+Debug URL hooks: `?scene=game|boss|phoenix|formation|catacombs|cathedral|gameover|howto|credits|options`, `&sim=SECONDS`, `&freeze=1`, `&touch=1`, `&seed=N`, `&mute=1`, `&fps=1`, `&noscanlines=1`, `&style=hd|3d` to force a renderer, and `&cc0music=1` to force the CC0 soundtrack.
 
 ---
 
@@ -264,6 +274,11 @@ Debug URL hooks: `?scene=game|boss|phoenix|formation|catacombs|cathedral|gameove
 - **Cyber Michelangelo** is an original, non-commercial homage. **No original game code, art, names or audio assets were used** — every pixel and every sound is generated procedurally in this repository.
 - Built with **AI assistance** (DeepSeek agent) for design, code, art and audio.
 - **three.js r160** (MIT License, © 2010-2023 three.js authors) is vendored in `vendor/three` for the optional 3D mode; its license file is kept alongside the module. All 3D models, environments and materials are generated procedurally by this project's code — no third-party art assets are used.
+- **CC0 soundtrack (optional):** all four sampled tracks are **CC0 1.0 Universal (public domain)** from OpenGameArt and are credited in-game and in [`assets/audio/cc0/CREDITS.md`](assets/audio/cc0/CREDITS.md):
+  - *Galactic Temple* — **yd** ([source](https://opengameart.org/content/galactic-temple))
+  - *High-Energy Adventure Theme* — **SRG774** ([source](https://opengameart.org/content/high-energy-adventure-theme-130-bpm))
+  - *Fast fight / battle music (looped)* — loop edit by **XCVG**, original by **Ville Nousiainen** ([source](https://opengameart.org/content/fast-fight-battle-music-looped))
+  - *Dark Intro* — **Nikke** ([source](https://opengameart.org/content/dark-intro))
 - The `research/` folder preserves an independent Arabic research report on the *Cresta* series that informed the design; it is reference material and is not required to play.
 
 **License:** MIT.
@@ -274,4 +289,4 @@ Debug URL hooks: `?scene=game|boss|phoenix|formation|catacombs|cathedral|gameove
 
 **سايبر مايكل أنجلو** لعبة شوتر عمودية بأسلوب **HD-2D** — فن متجهي عالي الدقة فوق خلفيات نهضوية متحركة — مستوحاة من *Terra Cresta* (1985):
 سفينة ألفا الأساسية، وأربع وحدات قتالية (بيتا، غاما، دلتا، إبسيلون) تُحرَّر بإسقاط الصوامع الأرضية وتلتحم بالسفينة فتمنحها قوة نارية إضافية وتمتص الضربات بدلاً منك.
-اضغط زر التحويل `X` لتفكيك الوحدات في تشكيلات قتالية مؤقتة (الهلال، التمدد، الحراسة) — القطع منيعة أثناء الانفصال لكن جسم السفينة مكشوف؛ وإذا جمعت القطع الأربع فاضغط `X` لتتحول إلى **طائر العنقاء الناري** الذي لا يُقهر لدقائق. أضف إلى ذلك قنبلة **NOVA** الماسحة للشاشة، ومضاعفات النقاط، وثلاث بيئات متجددة بجرافيك HD، وزعماء مرحلين، وموسيقى ومؤثرات مولّدة رقمياً. **وضع 3D اختياري** (three.js مضمّن محلياً) يُختار من شاشة البداية أو الإعدادات، ويستخدم نفس منطق اللعبة تماماً. تعمل اللعبة بالكامل بدون إنترنت، ومختبَرة بـ 43 اختباراً منطقياً وفحوصات بصرية آلية.
+اضغط زر التحويل `X` لتفكيك الوحدات في تشكيلات قتالية مؤقتة (الهلال، التمدد، الحراسة) — القطع منيعة أثناء الانفصال لكن جسم السفينة مكشوف؛ وإذا جمعت القطع الأربع فاضغط `X` لتتحول إلى **طائر العنقاء الناري** الذي لا يُقهر لدقائق. أضف إلى ذلك قنبلة **NOVA** الماسحة للشاشة، ومضاعفات النقاط، وثلاث بيئات متجددة بجرافيك HD، وزعماء مرحلين، وموسيقى ومؤثرات مولّدة رقمياً — مع **موسيقى CC0 اختيارية** موثّقة المصادر. **وضع 3D اختياري** (three.js مضمّن محلياً) يُختار من شاشة البداية أو الإعدادات، ويستخدم نفس منطق اللعبة تماماً. تعمل اللعبة بالكامل بدون إنترنت، ومختبَرة بـ 45 اختباراً منطقياً وفحوصات بصرية آلية.

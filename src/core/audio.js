@@ -45,6 +45,18 @@ const TRACKS = {
   },
 };
 
+/**
+ * CC0 soundtrack (OpenGameArt) — optional alternative to the procedural
+ * chiptune. Only downloaded when the player selects the CC0 music style.
+ * Sources/attribution: assets/audio/cc0/CREDITS.md and README.
+ */
+export const CC0_TRACKS = {
+  title: 'assets/audio/cc0/title-galactic-temple.ogg',
+  stage: 'assets/audio/cc0/stage-high-energy.ogg',
+  boss: 'assets/audio/cc0/boss-fast-fight.wav',
+  gameover: 'assets/audio/cc0/gameover-dark-intro.ogg',
+};
+
 function everyTwo(step) {
   return step % 2 === 0;
 }
@@ -74,6 +86,12 @@ export class AudioEngine {
     this.sfxGain = null;
     this.lastSfx = new Map();
     this.unlockTried = false;
+    // Music style: 'chiptune' (procedural, default) or 'cc0' (sampled tracks).
+    this.musicStyle = 'chiptune';
+    this.externalBuffers = new Map();
+    this.externalSource = null;
+    this.externalGain = null;
+    this.externalLoading = null;
   }
 
   /* ---------------------------------------------------------------- */
@@ -133,8 +151,7 @@ export class AudioEngine {
         this.pendingTrack = null;
         this.music(t);
       } else if (this.track) {
-        this.step = 0;
-        this.nextStepTime = ctx.currentTime + 0.12;
+        this.startTrack(this.track);
       }
       return true;
     } catch (err) {
@@ -172,6 +189,86 @@ export class AudioEngine {
   /* Music                                                            */
   /* ---------------------------------------------------------------- */
 
+  /** Switch between the procedural chiptune and the CC0 sampled soundtrack. */
+  setMusicStyle(style) {
+    const next = style === 'cc0' ? 'cc0' : 'chiptune';
+    if (next === this.musicStyle) return;
+    this.musicStyle = next;
+    this.stopExternal();
+    this.step = 0;
+    if (this.ctx) this.nextStepTime = this.ctx.currentTime + 0.08;
+    if (this.track) this.startTrack(this.track);
+  }
+
+  startTrack(track) {
+    if (this.musicStyle === 'cc0') {
+      this.playExternal(track);
+      return;
+    }
+    this.stopExternal();
+    this.step = 0;
+    if (this.ctx) this.nextStepTime = this.ctx.currentTime + 0.08;
+  }
+
+  async playExternal(track) {
+    const url = CC0_TRACKS[track];
+    if (!url || !this.ctx) return;
+    try {
+      const buffer = await this.loadExternal(url);
+      if (!buffer) return;
+      // Style may have changed while the sample was downloading.
+      if (this.musicStyle !== 'cc0' || this.track !== track) return;
+      this.stopExternal();
+      const src = this.ctx.createBufferSource();
+      src.buffer = buffer;
+      src.loop = true;
+      const gain = this.ctx.createGain();
+      gain.gain.value = 0.8;
+      src.connect(gain);
+      gain.connect(this.musicGain);
+      src.start();
+      this.externalSource = src;
+      this.externalGain = gain;
+    } catch (err) {
+      // Never let a missing/undecodable sample break the game: fall back to
+      // the procedural chiptune and remember nothing (user can retry).
+      console.warn('[audio] CC0 track unavailable, using chiptune:', err);
+      this.musicStyle = 'chiptune';
+      this.stopExternal();
+      this.step = 0;
+      if (this.ctx) this.nextStepTime = this.ctx.currentTime + 0.08;
+    }
+  }
+
+  loadExternal(url) {
+    if (this.externalBuffers.has(url)) return Promise.resolve(this.externalBuffers.get(url));
+    if (this.externalLoading && this.externalLoading.url === url) return this.externalLoading.promise;
+    const promise = fetch(url)
+      .then((res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
+        return res.arrayBuffer();
+      })
+      .then((data) => this.ctx.decodeAudioData(data))
+      .then((buffer) => {
+        this.externalBuffers.set(url, buffer);
+        return buffer;
+      });
+    this.externalLoading = { url, promise };
+    return promise;
+  }
+
+  stopExternal() {
+    if (this.externalSource) {
+      try { this.externalSource.stop(); } catch { /* already stopped */ }
+      try { this.externalSource.disconnect(); } catch { /* ignore */ }
+      this.externalSource = null;
+    }
+    if (this.externalGain) {
+      try { this.externalGain.disconnect(); } catch { /* ignore */ }
+      this.externalGain = null;
+    }
+  }
+
   music(track) {
     if (track === this.track) return;
     this.track = track;
@@ -180,11 +277,12 @@ export class AudioEngine {
       this.pendingTrack = track;
       return;
     }
-    this.nextStepTime = this.ctx.currentTime + 0.08;
+    this.startTrack(track);
   }
 
   tick() {
     if (!this.ready || !this.track || this.muted) return;
+    if (this.musicStyle === 'cc0') return; // the sample plays itself
     const ctx = this.ctx;
     const config = TRACKS[this.track];
     if (!config) return;

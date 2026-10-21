@@ -55,6 +55,8 @@ if (params.has('fps')) settings.showFps = true;
 if (params.has('noscanlines')) settings.scanlines = false;
 if (params.get('style') === '3d') settings.renderStyle = '3d';
 else if (params.get('style') === 'hd') settings.renderStyle = 'hd';
+if (params.has('cc0music')) settings.musicStyle = 'cc0';
+audio.setMusicStyle(settings.musicStyle);
 
 const seedParam = Number(params.get('seed'));
 const game = new Game({
@@ -357,6 +359,40 @@ async function runSelfTest() {
     }
   } catch (err) {
     results.push({ name: '3D renderer (three.js)', ok: true, note: `WebGL unavailable — skipped (${String(err && err.message ? err.message : err)})` });
+  }
+
+  // Optional CC0 soundtrack: every track must be present and non-empty.
+  try {
+    const { CC0_TRACKS } = await import('./core/audio.js');
+    const entries = Object.entries(CC0_TRACKS);
+    const missing = [];
+    for (const [track, url] of entries) {
+      try {
+        const res = await fetch(url, { method: 'HEAD' });
+        const len = Number(res.headers.get('content-length') || 0);
+        if (!res.ok || (len > 0 && len < 20000)) missing.push(`${track}: HTTP ${res.status} / ${len}B`);
+      } catch (err) {
+        missing.push(`${track}: ${String(err && err.message ? err.message : err)}`);
+      }
+    }
+    results.push({
+      name: 'CC0 soundtrack assets available',
+      ok: missing.length === 0,
+      note: missing.length ? missing.join(' · ') : `${entries.length} tracks ready`,
+    });
+
+    // Codec probe: confirms the browser can play OGG (3 tracks) and WAV (1)
+    // without creating an AudioContext during the headless self-test.
+    const probe = document.createElement('audio');
+    const oggOk = probe.canPlayType('audio/ogg; codecs="vorbis"') !== '';
+    const wavOk = probe.canPlayType('audio/wav') !== '';
+    results.push({
+      name: 'Browser audio codecs support CC0 tracks',
+      ok: oggOk && wavOk,
+      note: `ogg=${oggOk} wav=${wavOk}`,
+    });
+  } catch (err) {
+    results.push({ name: 'CC0 soundtrack assets available', ok: false, error: String(err) });
   }
 
   const ok = results.every((r) => r.ok);

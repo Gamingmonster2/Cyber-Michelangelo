@@ -38,10 +38,11 @@ export const PAUSE_ITEMS = ['RESUME', 'RESTART', 'QUIT TO TITLE'];
 export const OPTION_ITEMS = [
   { key: 'music', label: 'MUSIC', type: 'volume' },
   { key: 'sfx', label: 'SFX', type: 'volume' },
+  { key: 'musicStyle', label: 'MUSIC STYLE', type: 'choice', choices: ['chiptune', 'cc0'] },
   { key: 'autoFire', label: 'AUTO FIRE', type: 'bool' },
   { key: 'shake', label: 'SCREEN SHAKE', type: 'bool' },
   { key: 'scanlines', label: 'SCANLINES', type: 'bool' },
-  { key: 'renderStyle', label: 'RENDERER', type: 'choice' },
+  { key: 'renderStyle', label: 'RENDERER', type: 'choice', choices: ['hd', '3d'] },
   { key: 'back', label: 'BACK', type: 'back' },
 ];
 
@@ -248,7 +249,12 @@ export class Game {
       } else if (item.type === 'bool') {
         this.settings[item.key] = !this.settings[item.key];
       } else if (item.type === 'choice') {
-        this.settings[item.key] = this.settings[item.key] === '3d' ? 'hd' : '3d';
+        const choices = item.choices || ['hd', '3d'];
+        const current = Math.max(0, choices.indexOf(this.settings[item.key]));
+        this.settings[item.key] = choices[(current + dir + choices.length) % choices.length];
+        if (item.key === 'musicStyle' && this.audio && typeof this.audio.setMusicStyle === 'function') {
+          this.audio.setMusicStyle(this.settings[item.key]);
+        }
       }
       this.hooks.sfx('select');
       this.applyVolumes();
