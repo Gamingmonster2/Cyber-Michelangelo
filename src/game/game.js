@@ -24,7 +24,16 @@ const NOOP_FX = {
   shake() {}, flash() {}, nova() {}, beamHit() {},
 };
 
-export const TITLE_ITEMS = ['START MISSION', 'HOW TO PLAY', 'CREDITS', 'OPTIONS'];
+/** Title menu items — the last row toggles the renderer style (HD-2D / 3D). */
+export function titleItems(settings = {}) {
+  return [
+    'START MISSION',
+    'HOW TO PLAY',
+    'CREDITS',
+    'OPTIONS',
+    `RENDER: ${settings.renderStyle === '3d' ? '3D' : 'HD-2D'}`,
+  ];
+}
 export const PAUSE_ITEMS = ['RESUME', 'RESTART', 'QUIT TO TITLE'];
 export const OPTION_ITEMS = [
   { key: 'music', label: 'MUSIC', type: 'volume' },
@@ -32,6 +41,7 @@ export const OPTION_ITEMS = [
   { key: 'autoFire', label: 'AUTO FIRE', type: 'bool' },
   { key: 'shake', label: 'SCREEN SHAKE', type: 'bool' },
   { key: 'scanlines', label: 'SCANLINES', type: 'bool' },
+  { key: 'renderStyle', label: 'RENDERER', type: 'choice' },
   { key: 'back', label: 'BACK', type: 'back' },
 ];
 
@@ -163,15 +173,20 @@ export class Game {
   }
 
   updateTitle(input) {
-    if (input.down) this.moveMenu(1, TITLE_ITEMS.length);
-    if (input.up) this.moveMenu(-1, TITLE_ITEMS.length);
+    const items = titleItems(this.settings);
+    if (input.down) this.moveMenu(1, items.length);
+    if (input.up) this.moveMenu(-1, items.length);
     if (input.pause || input.back) return;
     if (input.confirm || input.transform) {
-      const item = TITLE_ITEMS[this.menuIndex];
+      const item = items[this.menuIndex];
       if (item === 'START MISSION') this.startRun();
       else if (item === 'HOW TO PLAY') { this.goToScene('howto'); this.howtoPage = 0; }
       else if (item === 'CREDITS') this.goToScene('credits');
       else if (item === 'OPTIONS') { this.goToScene('options'); this.optionIndex = 0; }
+      else if (item.startsWith('RENDER:')) {
+        this.settings.renderStyle = this.settings.renderStyle === '3d' ? 'hd' : '3d';
+        saveSettings(this.settings);
+      }
       this.hooks.sfx('select');
     }
   }
@@ -232,6 +247,8 @@ export class Game {
         this.settings[item.key] = (this.settings[item.key] + dir + 11) % 11;
       } else if (item.type === 'bool') {
         this.settings[item.key] = !this.settings[item.key];
+      } else if (item.type === 'choice') {
+        this.settings[item.key] = this.settings[item.key] === '3d' ? 'hd' : '3d';
       }
       this.hooks.sfx('select');
       this.applyVolumes();

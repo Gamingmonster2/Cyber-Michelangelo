@@ -4,13 +4,14 @@
  * No DOM or dependencies required.
  */
 import assert from 'node:assert/strict';
-import { Game } from '../src/game/game.js';
+import { Game, titleItems } from '../src/game/game.js';
 import { createStage, expandPattern, nextMissingModule, stageSpawnCount } from '../src/game/waves.js';
 import { formationPositions } from '../src/game/formations.js';
 import {
   PLAYER, MODULE_DEFS, MODULE_BY_ID, MODULE_ORDER, SCORING, GAME, BOSS,
   ENEMY_TYPES, DIFFICULTY, stageInfo,
 } from '../src/game/config.js';
+import { OPTION_ITEMS } from '../src/game/game.js';
 import { RNG, clamp, lerp, formatScore, hashSeed } from '../src/core/math.js';
 import { P } from '../src/render/palette.js';
 import { _resetMemoryStore, getItem, KEYS } from '../src/core/storage.js';
@@ -141,17 +142,35 @@ test('game boots into the title scene', () => {
 });
 test('title menus navigate and start a run', () => {
   const g = new Game({ seed: 1 });
+  const count = titleItems(g.settings).length;
+  assert.ok(count >= 5, 'title menu includes the renderer toggle');
   g.update(1 / 60, { down: true });
   assert.equal(g.menuIndex, 1);
-  g.update(1 / 60, { down: true });
-  g.update(1 / 60, { down: true });
-  assert.equal(g.menuIndex, 3);
-  g.update(1 / 60, { down: true });
+  for (let i = 1; i < count; i++) g.update(1 / 60, { down: true });
   assert.equal(g.menuIndex, 0);
   g.update(1 / 60, { confirm: true });
   assert.equal(g.scene, 'playing');
   assert.equal(g.lives, GAME.startingLives);
   assert.equal(g.novas, GAME.startingNovas);
+});
+test('renderer style toggles from the title menu and persists the choice', () => {
+  const g = new Game({ seed: 1 });
+  assert.equal(g.settings.renderStyle, 'hd');
+  g.menuIndex = titleItems(g.settings).length - 1;
+  g.update(1 / 60, { confirm: true });
+  assert.equal(g.settings.renderStyle, '3d');
+  assert.ok(titleItems(g.settings).at(-1).includes('3D'));
+  g.update(1 / 60, { confirm: true });
+  assert.equal(g.settings.renderStyle, 'hd');
+});
+test('options screen can switch the renderer as well', () => {
+  const g = new Game({ seed: 1 });
+  g.goToScene('options');
+  const idx = OPTION_ITEMS.findIndex((o) => o.key === 'renderStyle');
+  assert.ok(idx >= 0, 'RENDERER option exists');
+  g.optionIndex = idx;
+  g.update(1 / 60, { confirm: true });
+  assert.equal(g.settings.renderStyle, '3d');
 });
 test('how to play / credits / options screens open and close', () => {
   const g = new Game({ seed: 1 });

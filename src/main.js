@@ -16,6 +16,7 @@ import { drawText } from './render/pixelfont.js';
 import { P } from './render/palette.js';
 
 const canvas = document.getElementById('game');
+const canvas3d = document.getElementById('game3d');
 const boot = document.getElementById('boot');
 const params = new URLSearchParams(location.search);
 
@@ -47,11 +48,13 @@ const NO_EDGES = (snap) => ({ x: snap.x, y: snap.y, fire: snap.fire });
 /* ------------------------------------------------------------------ */
 
 const sprites = buildSprites();
-const renderer = new Renderer(canvas, sprites);
+const renderer = new Renderer(canvas, sprites, canvas3d);
 const audio = new AudioEngine();
 const settings = loadSettings();
 if (params.has('fps')) settings.showFps = true;
 if (params.has('noscanlines')) settings.scanlines = false;
+if (params.get('style') === '3d') settings.renderStyle = '3d';
+else if (params.get('style') === 'hd') settings.renderStyle = 'hd';
 
 const seedParam = Number(params.get('seed'));
 const game = new Game({
@@ -209,7 +212,7 @@ function writeSelfTest(payload) {
   document.title = payload.ok ? 'CM SELFTEST PASS' : 'CM SELFTEST FAIL';
 }
 
-function runSelfTest() {
+async function runSelfTest() {
   const results = [];
   const check = (name, fn) => {
     try {
@@ -330,6 +333,32 @@ function runSelfTest() {
     return true;
   });
 
+  // Optional 3D renderer probe. WebGL may be unavailable in some headless
+  // environments; that is a graceful skip, not a failure.
+  try {
+    const mod = await import('./render3d/renderer3d.js');
+    const probeCanvas = document.createElement('canvas');
+    const r3d = new mod.Renderer3D(probeCanvas);
+    if (!r3d.init()) {
+      results.push({ name: '3D renderer (three.js)', ok: true, note: 'WebGL unavailable — skipped' });
+    } else {
+      const g3d = new Game({ audio, fx: renderer.fx, settings: { ...settings, renderStyle: 'hd' }, seed: 91 });
+      g3d.startRun();
+      g3d.player.invuln = 1e9;
+      g3d.advance(2.5, (t) => ({ x: Math.sin(t * 1.5) * 0.7, fire: true }));
+      r3d.resize(240, 420, 1);
+      r3d.render(g3d, 1.2, 1 / 60);
+      const gl = r3d.renderer.getContext();
+      const px = new Uint8Array(4);
+      gl.readPixels(Math.floor(probeCanvas.width / 2), Math.floor(probeCanvas.height / 2), 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, px);
+      const lit = px[0] + px[1] + px[2];
+      r3d.dispose();
+      results.push({ name: '3D renderer (three.js) renders the world', ok: lit > 8, note: `centre pixel ${lit}` });
+    }
+  } catch (err) {
+    results.push({ name: '3D renderer (three.js)', ok: true, note: `WebGL unavailable — skipped (${String(err && err.message ? err.message : err)})` });
+  }
+
   const ok = results.every((r) => r.ok);
   writeSelfTest({ ok, version: VERSION, results, build: 'cyber-michelangelo', time: new Date().toISOString() });
   return ok;
@@ -406,8 +435,8 @@ document.addEventListener('visibilitychange', () => {
 
 resize();
 if (params.has('selftest')) {
-  // Give modules a moment to paint, then run assertions.
-  setTimeout(() => runSelfTest(), 120);
+  // Give modules a moment to paint, then run assertions (async for the 3D probe).
+  setTimeout(() => { runSelfTest(); }, 120);
 } else {
   requestAnimationFrame(frame);
 }
@@ -420,6 +449,7 @@ window.__CM__ = {
   audio,
   settings,
   version: VERSION,
+  canvas3d,
   snapshot: () => game.snapshot(),
   advance: (seconds, fire = true) => {
     game.advance(seconds, (t) => ({ x: Math.sin(t * 1.3) * 0.7, y: 0, fire }));

@@ -6,7 +6,7 @@ import { P } from './palette.js';
 import { withAlpha, glow } from './pixel.js';
 import { formatScore } from '../core/math.js';
 import { MODULE_DEFS } from '../game/config.js';
-import { OPTION_ITEMS, PAUSE_ITEMS, TITLE_ITEMS } from '../game/game.js';
+import { OPTION_ITEMS, PAUSE_ITEMS } from '../game/game.js';
 
 const FONT = '"Bahnschrift", "Segoe UI", "Helvetica Neue", Arial, sans-serif';
 const MONO = '"Bahnschrift", "Consolas", "Segoe UI", monospace';
@@ -278,6 +278,18 @@ export function drawOptions(ctx, game) {
       ctx.arc(on ? 155 : 143, y - 0.5, 3.4, 0, TAU);
       ctx.fill();
       label(ctx, on ? 'ON' : 'OFF', 166, y, { size: 4.6, color: on ? P.cyanHi : P.marbleSh, tracking: 1 });
+    } else if (item.type === 'choice') {
+      const is3d = game.settings[item.key] === '3d';
+      const bx = 128;
+      rr(ctx, bx, y - 6.5, 58, 12, 5.5);
+      ctx.fillStyle = is3d ? withAlpha(P.violet, 0.18) : withAlpha(P.cyan, 0.12);
+      ctx.fill();
+      ctx.strokeStyle = is3d ? withAlpha(P.violet, 0.85) : withAlpha(P.cyanHi, 0.7);
+      ctx.lineWidth = 0.6;
+      ctx.stroke();
+      label(ctx, is3d ? '3D WEBGL' : 'HD-2D', bx + 29, y + 1.6, {
+        align: 'center', size: 4.6, color: is3d ? P.violet : P.cyanHi, tracking: 0.5, weight: 800,
+      });
     }
     y += 25;
   }
@@ -397,4 +409,4 @@ export function drawGameover(ctx, game) {
   footerHint(ctx, 'THANK YOU FOR PLAYING');
 }
 
-export { TITLE_ITEMS, PAUSE_ITEMS, OPTION_ITEMS };
+export { PAUSE_ITEMS, OPTION_ITEMS };

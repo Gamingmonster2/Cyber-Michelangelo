@@ -107,13 +107,26 @@ body::after {
   mix-blend-mode: screen;
 }
 
+#game3d {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  display: none;
+  background: #04030a;
+  image-rendering: auto;
+}
+
 #game {
   display: block;
+  position: relative;
+  z-index: 1;
   width: 100%;
   height: 100%;
   touch-action: none;
   image-rendering: pixelated;
   outline: none;
+  background: transparent;
 }
 
 /* Boot / loading overlay until the first frame is ready. */

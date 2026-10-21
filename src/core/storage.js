@@ -103,6 +103,7 @@ export const DEFAULT_SETTINGS = Object.freeze({
   shake: true,
   scanlines: true,
   showFps: false,
+  renderStyle: 'hd', // 'hd' (HD-2D) | '3d' (optional WebGL renderer)
 });
 
 export function loadSettings() {

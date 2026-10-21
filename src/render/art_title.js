@@ -7,7 +7,7 @@ import { withAlpha, glow } from './pixel.js';
 import { formatScore } from '../core/math.js';
 import { drawPlayerCraftHD } from './art_player.js';
 import { drawEnemyArt } from './art_enemies.js';
-import { TITLE_ITEMS } from '../game/game.js';
+import { titleItems } from '../game/game.js';
 import { MODULE_BY_ID } from '../game/config.js';
 
 const TAU = Math.PI * 2;
@@ -117,7 +117,7 @@ function drawHeroBeams(ctx, t, hero) {
 /* ------------------------------------------------------------------ */
 
 export function drawTitleHD(ctx, time, opts = {}) {
-  const { menuIndex = 0, hiScore = 0, bg = null, scale = 2, backdropOnly = false } = opts;
+  const { menuIndex = 0, hiScore = 0, bg = null, scale = 2, backdropOnly = false, settings = {} } = opts;
   const theme = THEMES[0];
 
   if (bg) {
@@ -224,22 +224,28 @@ export function drawTitleHD(ctx, time, opts = {}) {
   glow(ctx, 120, y + 0.4, 7, P.goldHi, 0.3);
 
   // Menu.
+  const items = titleItems(opts.settings || {});
   const itemH = 15.5;
   const itemW = 156;
-  const startY = 168;
-  const itemGap = 20;
-  for (let i = 0; i < TITLE_ITEMS.length; i++) {
+  const startY = 164;
+  const itemGap = 18;
+  for (let i = 0; i < items.length; i++) {
     const sel = i === menuIndex;
     const iy = startY + i * itemGap;
     const ix = 120 - itemW / 2;
     rr(ctx, ix, iy - 10.5, itemW, itemH, 4.2);
     ctx.fillStyle = sel ? 'rgba(24,18,10,0.72)' : 'rgba(8,7,18,0.6)';
     ctx.fill();
+    const accentRow = items[i].startsWith('RENDER:');
     const border = ctx.createLinearGradient(ix, 0, ix + itemW, 0);
     if (sel) {
       border.addColorStop(0, withAlpha(P.gold, 0.25));
       border.addColorStop(0.5, P.goldHi);
       border.addColorStop(1, withAlpha(P.gold, 0.25));
+    } else if (accentRow) {
+      border.addColorStop(0, withAlpha(P.cyan, 0.15));
+      border.addColorStop(0.5, withAlpha(P.cyan, 0.55));
+      border.addColorStop(1, withAlpha(P.cyan, 0.15));
     } else {
       border.addColorStop(0, withAlpha(P.steelMid, 0.2));
       border.addColorStop(0.5, withAlpha(P.steelMid, 0.55));
@@ -257,23 +263,23 @@ export function drawTitleHD(ctx, time, opts = {}) {
       ctx.fillText('◀', ix - 8, iy + 0.5);
       ctx.fillText('▶', ix + itemW + 8, iy + 0.5);
     }
-    setFont(ctx, 8.2, 800, FONT, 2.1);
+    setFont(ctx, accentRow ? 6.8 : 8.2, 800, FONT, accentRow ? 1.2 : 2.1);
     ctx.textAlign = 'center';
-    ctx.fillStyle = sel ? P.goldHi : withAlpha(P.marbleMid, 0.9);
-    ctx.fillText(TITLE_ITEMS[i], 120, iy + 2.6);
+    ctx.fillStyle = sel ? P.goldHi : accentRow ? withAlpha(P.cyan, 0.9) : withAlpha(P.marbleMid, 0.9);
+    ctx.fillText(items[i], 120, iy + 2.6);
   }
 
   // Hi-score.
-  label(ctx, 'HI-SCORE', 120, 250, { size: 4.8, color: P.cyanMid, tracking: 2.4 });
+  label(ctx, 'HI-SCORE', 120, 254, { size: 4.8, color: P.cyanMid, tracking: 2.4 });
   setFont(ctx, 15, 800, MONO, 1.6);
   ctx.textAlign = 'center';
   ctx.fillStyle = (() => {
-    const g = ctx.createLinearGradient(0, 256, 0, 272);
+    const g = ctx.createLinearGradient(0, 260, 0, 276);
     g.addColorStop(0, P.marbleHi);
     g.addColorStop(1, P.marbleSh);
     return g;
   })();
-  ctx.fillText(formatScore(hiScore), 120, 269);
+  ctx.fillText(formatScore(hiScore), 120, 271);
 
   // Footer credit line.
   label(ctx, 'INSPIRED BY TERRA CRESTA (1985) · NICHIBUTSU · AI-ASSISTED', 120, 282, {

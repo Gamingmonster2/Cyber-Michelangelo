@@ -20,6 +20,7 @@ import {
   drawHowto, drawCredits, drawOptions, drawPause, drawGameover,
 } from './screens.js';
 import { PLAYER, MODULE_BY_ID, MODULE_DEFS, MODULE_ORDER, FIELD, PODS } from '../game/config.js';
+import { saveSettings } from '../core/storage.js';
 import { drawPlayerCraftHD } from './art_player.js';
 import { drawEnemyArt } from './art_enemies.js';
 import { drawPodHD, drawModulePickupHD, drawGemHD, drawNovaHD, drawHeartHD } from './art_pickups.js';
@@ -42,8 +43,9 @@ const COLORS = {
 };
 
 export class Renderer {
-  constructor(canvas, sprites) {
+  constructor(canvas, sprites, canvas3d) {
     this.canvas = canvas;
+    this.canvas3d = canvas3d || null;
     this.display = canvas.getContext('2d');
     this.sprites = sprites;
     this.screen = new PixelScreen(PIX_W, PIX_H, 1);
@@ -61,6 +63,15 @@ export class Renderer {
     this.fps = 60;
     this._fpsAcc = 0;
     this._fpsFrames = 0;
+    // Optional WebGL renderer (Phase 2). Lazily imported so the classic
+    // HD-2D path keeps loading instantly even if 3D is never enabled.
+    this.renderer3d = null;
+    this.renderer3dTried = false;
+    this.renderer3dFailed = false;
+    this.use3d = false;
+    this._3dNotified = false;
+    this.cssW = 0;
+    this.cssH = 0;
 
     this.fx = {
       explosion: (x, y, size = 'medium') => this.spawnExplosion(x, y, size),
@@ -80,6 +91,8 @@ export class Renderer {
 
   resize(cssW, cssH, dpr) {
     this.dpr = dpr;
+    this.cssW = cssW;
+    this.cssH = cssH;
     this.canvas.width = Math.max(1, Math.round(cssW * dpr));
     this.canvas.height = Math.max(1, Math.round(cssH * dpr));
     this.display.imageSmoothingEnabled = false;
@@ -90,6 +103,31 @@ export class Renderer {
       this.screenScale = desired;
       this.screen = new PixelScreen(PIX_W, PIX_H, desired);
     }
+    if (this.renderer3d) this.renderer3d.resize(cssW, cssH, dpr);
+  }
+
+  /** Load and initialise the optional three.js renderer on first use. */
+  ensure3D() {
+    if (this.renderer3dTried) return;
+    this.renderer3dTried = true;
+    import('../render3d/renderer3d.js')
+      .then((mod) => {
+        if (!this.canvas3d) {
+          this.renderer3dFailed = true;
+          return;
+        }
+        const r = new mod.Renderer3D(this.canvas3d);
+        if (!r.init()) {
+          this.renderer3dFailed = true;
+          return;
+        }
+        this.renderer3d = r;
+        if (this.cssW > 0) r.resize(this.cssW, this.cssH, this.dpr);
+      })
+      .catch((err) => {
+        console.warn('[renderer] 3D renderer unavailable:', err);
+        this.renderer3dFailed = true;
+      });
   }
 
   /* ================================================================ */
@@ -107,8 +145,27 @@ export class Renderer {
     this.shakeY = Math.round((Math.random() * 2 - 1) * this.shakeAmt * 3);
     this.flashAmt = Math.max(0, this.flashAmt - dt * 2.8);
 
+    // ---- Optional 3D layer -------------------------------------------
+    const wants3d = Boolean(game.settings && game.settings.renderStyle === '3d');
+    const gameplayScene = game.scene === 'playing' || game.scene === 'paused' || game.scene === 'gameover';
+    if (wants3d && !this.renderer3dTried) this.ensure3D();
+    if (wants3d && gameplayScene && this.renderer3dFailed && !this._3dNotified) {
+      this._3dNotified = true;
+      game.settings.renderStyle = 'hd';
+      saveSettings(game.settings);
+      if (typeof game.addPopup === 'function') {
+        game.addPopup('3D UNAVAILABLE · SWITCHED TO HD-2D', 120, 150, 'red', 2.6);
+      }
+    }
+    const use3d = wants3d && gameplayScene && Boolean(this.renderer3d) && this.renderer3d.ready;
+    this.use3d = use3d;
+    if (this.canvas3d) this.canvas3d.style.display = use3d ? 'block' : 'none';
+    this.canvas.style.imageRendering = use3d ? 'auto' : 'pixelated';
+    if (use3d) this.renderer3d.render(game, game.time, dt);
+
     const ctx = this.screen.ctx;
-    this.screen.clear(P.void);
+    if (use3d) this.screen.clearTransparent();
+    else this.screen.clear(P.void);
     ctx.globalAlpha = 1;
     ctx.globalCompositeOperation = 'source-over';
 
@@ -119,6 +176,7 @@ export class Renderer {
           hiScore: game.hiScore,
           bg: this.bgHD,
           scale: this.screenScale,
+          settings: game.settings,
         });
         break;
       case 'howto':
@@ -130,6 +188,7 @@ export class Renderer {
           bg: this.bgHD,
           scale: this.screenScale,
           backdropOnly: true,
+          settings: game.settings,
         });
         if (game.scene === 'howto') drawHowto(ctx, game);
         else if (game.scene === 'credits') drawCredits(ctx, game, game.time);
@@ -174,10 +233,14 @@ export class Renderer {
     const cvs = this.canvas;
     if (!cvs.width || !cvs.height) return;
     d.setTransform(1, 0, 0, 1, 0, 0);
-    d.imageSmoothingEnabled = this.screenScale >= 3;
+    d.imageSmoothingEnabled = this.screenScale >= 3 || this.use3d;
     d.globalAlpha = 1;
-    d.fillStyle = '#04030a';
-    d.fillRect(0, 0, cvs.width, cvs.height);
+    if (this.use3d) {
+      d.clearRect(0, 0, cvs.width, cvs.height);
+    } else {
+      d.fillStyle = '#04030a';
+      d.fillRect(0, 0, cvs.width, cvs.height);
+    }
     const stepX = cvs.width / PIX_W;
     const stepY = cvs.height / PIX_H;
     d.drawImage(
@@ -203,23 +266,48 @@ export class Renderer {
   /* ================================================================ */
 
   drawGame(ctx, game, input, frozen) {
-    const theme = game.theme || THEMES[0];
-    const scroll = (game.runTime || 0) * 34 + (game.stage - 1) * 90;
-    this.bgHD.draw(ctx, theme, scroll, game.time, this.screenScale);
+    if (!this.use3d) {
+      const theme = game.theme || THEMES[0];
+      const scroll = (game.runTime || 0) * 34 + (game.stage - 1) * 90;
+      this.bgHD.draw(ctx, theme, scroll, game.time, this.screenScale);
+    }
 
     // Gameplay entities are clipped below the HUD so nothing bleeds into it.
     ctx.save();
     ctx.beginPath();
     ctx.rect(0, 34, 240, 420 - 34);
     ctx.clip();
-    this.drawPods(ctx, game);
-    this.drawPickups(ctx, game);
-    this.drawEnemies(ctx, game);
-    this.drawBoss(ctx, game);
-    this.drawPlayerBullets(ctx, game);
-    this.drawEnemyBullets(ctx, game);
-    if (!frozen) this.drawPlayer(ctx, game);
-    this.drawParticles(ctx);
+    if (this.use3d) {
+      // The WebGL underlay owns ships/enemies/boss/backdrop; 2D paints the
+      // crisp overlay layers: bullets, particles and readable pod numerals.
+      this.drawPlayerBullets(ctx, game);
+      this.drawEnemyBullets(ctx, game);
+      this.drawParticles(ctx);
+      if (game.podCluster) {
+        for (const pod of game.podCluster.pods) {
+          if (pod.dead) continue;
+          const accent = pod.num == null ? P.goldHi
+            : (MODULE_DEFS.find((m) => m.num === pod.num) || {}).accent || P.cyanHi;
+          ctx.save();
+          ctx.textAlign = 'center';
+          ctx.font = '800 6.5px "Bahnschrift", "Segoe UI", Arial, sans-serif';
+          ctx.shadowColor = 'rgba(0,0,0,0.9)';
+          ctx.shadowBlur = 3;
+          ctx.fillStyle = accent;
+          ctx.fillText(pod.num == null ? '*' : String(pod.num), pod.x, pod.y + 15);
+          ctx.restore();
+        }
+      }
+    } else {
+      this.drawPods(ctx, game);
+      this.drawPickups(ctx, game);
+      this.drawEnemies(ctx, game);
+      this.drawBoss(ctx, game);
+      this.drawPlayerBullets(ctx, game);
+      this.drawEnemyBullets(ctx, game);
+      if (!frozen) this.drawPlayer(ctx, game);
+      this.drawParticles(ctx);
+    }
     ctx.restore();
 
     drawHudHD(ctx, game);

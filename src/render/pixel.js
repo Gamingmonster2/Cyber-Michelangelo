@@ -47,6 +47,17 @@ export class PixelScreen {
     ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
     ctx.restore();
   }
+
+  /** Clear to fully transparent — used when a WebGL layer sits underneath. */
+  clearTransparent() {
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1;
+    ctx.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    ctx.restore();
+  }
 }
 
 /* ------------------------------------------------------------------ */

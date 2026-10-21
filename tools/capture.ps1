@@ -42,7 +42,8 @@ foreach ($shot in $shotList) {
   $url = "$BaseUrl$query"
 
   $edgeArgs = @(
-    '--headless=new', '--no-first-run', '--no-default-browser-check', '--disable-gpu',
+    '--headless=new', '--no-first-run', '--no-default-browser-check',
+    '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist',
     '--hide-scrollbars', '--force-device-scale-factor=1', '--disable-extensions',
     '--disable-background-networking', '--mute-audio', '--disable-crash-reporter',
     '--disable-breakpad', '--no-sandbox',
