@@ -21,6 +21,8 @@ import {
   drawHowto, drawCredits, drawOptions, drawPause, drawGameover,
 } from './screens.js';
 import { PLAYER, MODULE_BY_ID, MODULE_DEFS, MODULE_ORDER, FIELD, PODS } from '../game/config.js';
+import { drawPlayerCraftHD } from './art_player.js';
+import { drawEnemyArt } from './art_enemies.js';
 import { clamp, formatScore, TAU } from '../core/math.js';
 
 const COLORS = {
@@ -42,7 +44,8 @@ export class Renderer {
     this.canvas = canvas;
     this.display = canvas.getContext('2d');
     this.sprites = sprites;
-    this.screen = new PixelScreen(PIX_W, PIX_H);
+    this.screen = new PixelScreen(PIX_W, PIX_H, 1);
+    this.screenScale = 1;
     this.bg = new Background(1985);
     this.clock = 0;
     this.particles = [];
@@ -78,6 +81,13 @@ export class Renderer {
     this.canvas.width = Math.max(1, Math.round(cssW * dpr));
     this.canvas.height = Math.max(1, Math.round(cssH * dpr));
     this.display.imageSmoothingEnabled = false;
+    // Render the offscreen buffer at (close to) device resolution so vector
+    // art and gradients keep their detail at any screen size / DPR.
+    const desired = clamp(Math.round(this.canvas.width / PIX_W), 1, 4);
+    if (desired !== this.screenScale) {
+      this.screenScale = desired;
+      this.screen = new PixelScreen(PIX_W, PIX_H, desired);
+    }
   }
 
   /* ================================================================ */
@@ -156,7 +166,7 @@ export class Renderer {
     const cvs = this.canvas;
     if (!cvs.width || !cvs.height) return;
     d.setTransform(1, 0, 0, 1, 0, 0);
-    d.imageSmoothingEnabled = false;
+    d.imageSmoothingEnabled = this.screenScale >= 3;
     d.globalAlpha = 1;
     d.fillStyle = '#04030a';
     d.fillRect(0, 0, cvs.width, cvs.height);
@@ -164,7 +174,7 @@ export class Renderer {
     const stepY = cvs.height / PIX_H;
     d.drawImage(
       this.screen.canvas,
-      0, 0, PIX_W, PIX_H,
+      0, 0, this.screen.canvas.width, this.screen.canvas.height,
       Math.round(this.shakeX * stepX), Math.round(this.shakeY * stepY),
       cvs.width, cvs.height,
     );
@@ -284,37 +294,11 @@ export class Renderer {
       glow(ctx, field.x, field.y + 2, field.r * 0.7, P.green, 0.08 * pulse);
     }
 
-    // Docked modules.
-    for (const m of modules) {
-      const def = MODULE_BY_ID[m.id];
-      if (!def) continue;
-      const sprite = this.sprites.modules[m.id];
-      const bob = p.formationActive ? Math.sin(this.clock * 6 + m.x) * 0.5 : 0;
-      glow(ctx, m.x, m.y, 8, def.color, m.flying ? 0.18 : 0.1);
-      drawSprite(ctx, sprite, m.x, m.y + bob, { outline: P.outline });
-      if (p.hitPulse > 0.5) {
-        drawSprite(ctx, sprite, m.x, m.y + bob, { flash: true, alpha: p.hitPulse });
-      }
-    }
+    // Docked modules + HD player craft (vector art at device resolution).
+    drawPlayerCraftHD(ctx, p, this.clock);
 
-    // Engine flames.
-    const flick = 0.6 + 0.4 * Math.sin(this.clock * 30);
-    const engineY = p.y + 10;
-    glow(ctx, p.x - 3, engineY + 2, 8, P.cyan, 0.4);
-    glow(ctx, p.x + 3, engineY + 2, 8, P.cyan, 0.4);
-    rect(ctx, p.x - 4, engineY, 2, Math.max(2, Math.round(4 + 2 * flick)), P.cyan);
-    rect(ctx, p.x + 3, engineY, 2, Math.max(2, Math.round(4 + 2 * flick)), P.cyan);
-    rect(ctx, p.x - 3, engineY, 1, Math.max(1, Math.round(3 + flick)), P.cyanHi);
-    rect(ctx, p.x + 4, engineY, 1, Math.max(1, Math.round(3 + flick)), P.cyanHi);
-    if (Math.random() < 0.35) this.spawnFlame(p.x + (Math.random() - 0.5) * 5, engineY + 4);
-
-    // Core craft.
-    drawSprite(ctx, this.sprites.player, p.x, p.y, { outline: P.outline });
-    // Cockpit shine.
-    rect(ctx, p.x - 1, p.y - 5, 2, 3, withAlpha(P.white, 0.6));
-    rect(ctx, p.x - 1, p.y - 5, 1, 1, P.white);
-    if (p.hitPulse > 0.4) {
-      drawSprite(ctx, this.sprites.player, p.x, p.y, { flash: true, alpha: p.hitPulse });
+    if (p.hitPulse > 0.55) {
+      glow(ctx, p.x, p.y, 22, P.white, p.hitPulse * 0.35);
     }
 
     // Phoenix-ready prompt floats above the ship (never collides with the HUD).
@@ -418,13 +402,12 @@ export class Renderer {
   drawEnemies(ctx, game) {
     for (const e of game.enemies) {
       if (e.dead) continue;
-      const sprite = this.sprites.enemies[e.kind];
       const alpha = e.y < 0 ? 0.5 : 1;
       if (e.shielded) {
         // Aegis shield arc.
         const pulse = 0.5 + 0.3 * Math.sin(this.clock * 5 + e.uid);
         ctx.globalAlpha = 0.7 * alpha;
-        ring(ctx, e.x, e.y, 11, withAlpha(P.cyan, 0.35 * pulse), 1);
+        ring(ctx, e.x, e.y, 13, withAlpha(P.cyan, 0.35 * pulse), 1);
         ctx.globalAlpha = 1;
       }
       if (e.kind === 'lance' && e.charging > 0) {
@@ -436,22 +419,10 @@ export class Renderer {
           ctx.globalAlpha = 1;
         }
       }
-      glow(ctx, e.x, e.y, e.r + 6, e.kind === 'goliath' ? P.magentaSh : P.steelDeep, 0.18 * alpha);
-      drawSprite(ctx, sprite, e.x, e.y, { alpha, outline: P.outline });
-      if (e.flash > 0) {
-        drawSprite(ctx, sprite, e.x, e.y, { flash: true, alpha: Math.min(1, e.flash) });
-      }
-      // Engine / eye glints (always visible for readability).
-      const glint = e.kind === 'striker' || e.kind === 'seraph' ? P.greenHi
-        : e.kind === 'lance' ? P.violet
-          : e.kind === 'aegis' ? P.cyanHi : P.magentaHi;
-      const pulse = 0.55 + 0.45 * Math.sin(this.clock * 4 + e.uid);
-      rect(ctx, e.x - 1, e.y - 1, 2, 2, glint);
-      glow(ctx, e.x, e.y - 1, 4, glint, 0.35 + 0.2 * pulse);
-      if (e.kind === 'goliath') {
-        rect(ctx, e.x - 6, e.y + 8, 2, 2, withAlpha(P.magenta, 0.6));
-        rect(ctx, e.x + 5, e.y + 8, 2, 2, withAlpha(P.magenta, 0.6));
-      }
+      glow(ctx, e.x, e.y, e.r + 7, e.kind === 'goliath' ? P.magentaSh : P.steelDeep, 0.22 * alpha);
+      ctx.globalAlpha = alpha;
+      drawEnemyArt(ctx, e, this.clock);
+      ctx.globalAlpha = 1;
     }
   }
 
@@ -593,20 +564,40 @@ export class Renderer {
     for (const b of game.playerBullets) {
       const color = COLORS[b.color] || P.cyan;
       if (b.kind === 'lance') {
-        glow(ctx, b.x, b.y, 8, P.goldHi, 0.4);
-        rect(ctx, b.x - 1.5, b.y - 6, 3, 13, withAlpha(P.gold, 0.9));
-        rect(ctx, b.x - 0.5, b.y - 8, 1, 17, P.marbleHi);
-        rect(ctx, b.x - 3, b.y - 2, 6, 2, withAlpha(P.goldHi, 0.35));
+        glow(ctx, b.x, b.y, 9, P.goldHi, 0.45);
+        const g = ctx.createLinearGradient(b.x, b.y - 10, b.x, b.y + 10);
+        g.addColorStop(0, withAlpha(P.goldHi, 0));
+        g.addColorStop(0.3, P.goldHi);
+        g.addColorStop(0.5, P.white);
+        g.addColorStop(0.7, P.gold);
+        g.addColorStop(1, withAlpha(P.goldSh, 0));
+        ctx.fillStyle = g;
+        ctx.fillRect(b.x - 1.6, b.y - 10, 3.2, 20);
+        ctx.fillStyle = withAlpha(P.white, 0.9);
+        ctx.fillRect(b.x - 0.5, b.y - 8, 1, 16);
       } else if (b.kind === 'flame') {
-        glow(ctx, b.x, b.y, 6, P.orange, 0.28);
-        circle(ctx, b.x, b.y, 2, withAlpha(P.orangeHi, 0.9));
-        circle(ctx, b.x, b.y - 1, 1, P.marbleHi);
+        const g = ctx.createRadialGradient(b.x, b.y, 0.5, b.x, b.y, 5);
+        g.addColorStop(0, withAlpha(P.white, 0.95));
+        g.addColorStop(0.35, P.orangeHi);
+        g.addColorStop(0.75, withAlpha(P.orange, 0.6));
+        g.addColorStop(1, withAlpha(P.orangeSh, 0));
+        ctx.fillStyle = g;
+        ctx.beginPath();
+        ctx.arc(b.x, b.y, 5, 0, Math.PI * 2);
+        ctx.fill();
+        glow(ctx, b.x, b.y, 7, P.orange, 0.3);
       } else {
-        const h = b.h || 5;
-        glow(ctx, b.x, b.y, 6, color, 0.4);
-        rect(ctx, b.x - 1, b.y - h / 2 - 2, 3, h + 2, withAlpha(color, 0.5));
-        rect(ctx, b.x - 1, b.y - h / 2, 3, h, color);
-        rect(ctx, b.x - 0.5, b.y - h / 2, 1.5, Math.max(2, h - 2), P.white);
+        const h = (b.h || 5) + 3;
+        // Soft energy trail.
+        glow(ctx, b.x, b.y, 7, color, 0.4);
+        const g = ctx.createLinearGradient(b.x, b.y - h / 2, b.x, b.y + h / 2);
+        g.addColorStop(0, withAlpha(P.white, 0.9));
+        g.addColorStop(0.25, color);
+        g.addColorStop(1, withAlpha(color, 0));
+        ctx.fillStyle = g;
+        ctx.fillRect(b.x - 1, b.y - h / 2, 2, h);
+        ctx.fillStyle = withAlpha(P.white, 0.95);
+        ctx.fillRect(b.x - 0.5, b.y - h / 2, 1, Math.max(2, h - 3));
       }
     }
   }
@@ -614,11 +605,17 @@ export class Renderer {
   drawEnemyBullets(ctx, game) {
     for (const b of game.enemyBullets) {
       const color = COLORS[b.color] || P.magenta;
-      const r = b.r || 2;
+      const r = (b.r || 2) + 1.6;
       glow(ctx, b.x, b.y, r * 4, color, 0.4);
-      circle(ctx, b.x, b.y, r + 1, withAlpha(P.outline, 0.9));
-      circle(ctx, b.x, b.y, r, color);
-      circle(ctx, b.x - 0.5, b.y - 0.5, Math.max(0.6, r - 1), P.white);
+      const g = ctx.createRadialGradient(b.x - r * 0.3, b.y - r * 0.3, 0.4, b.x, b.y, r);
+      g.addColorStop(0, withAlpha(P.white, 1));
+      g.addColorStop(0.35, color);
+      g.addColorStop(0.8, withAlpha(color, 0.65));
+      g.addColorStop(1, withAlpha(color, 0));
+      ctx.fillStyle = g;
+      ctx.beginPath();
+      ctx.arc(b.x, b.y, r, 0, Math.PI * 2);
+      ctx.fill();
     }
   }
 

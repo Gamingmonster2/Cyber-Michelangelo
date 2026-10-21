@@ -23,21 +23,29 @@ export function makeCtx(w, h) {
   return ctx;
 }
 
-/** The offscreen pixel buffer. */
+/** The offscreen render buffer. `scale` = device pixels per logical pixel. */
 export class PixelScreen {
-  constructor(w = PIX_W, h = PIX_H) {
+  constructor(w = PIX_W, h = PIX_H, scale = 1) {
     this.w = w;
     this.h = h;
-    this.canvas = makeCanvas(w, h);
+    this.scale = Math.max(1, Math.round(scale));
+    this.canvas = makeCanvas(w * this.scale, h * this.scale);
     this.ctx = this.canvas.getContext('2d');
-    this.ctx.imageSmoothingEnabled = false;
+    this.ctx.setTransform(this.scale, 0, 0, this.scale, 0, 0);
+    // Smooth by default so glow sprites and vector art stay clean at HD scales;
+    // drawSprite() temporarily disables smoothing for crisp pixel sprites.
+    this.ctx.imageSmoothingEnabled = true;
   }
 
   clear(color = P.void) {
-    this.ctx.globalCompositeOperation = 'source-over';
-    this.ctx.globalAlpha = 1;
-    this.ctx.fillStyle = color;
-    this.ctx.fillRect(0, 0, this.w, this.h);
+    const ctx = this.ctx;
+    ctx.save();
+    ctx.setTransform(1, 0, 0, 1, 0, 0);
+    ctx.globalCompositeOperation = 'source-over';
+    ctx.globalAlpha = 1;
+    ctx.fillStyle = color;
+    ctx.fillRect(0, 0, this.canvas.width, this.canvas.height);
+    ctx.restore();
   }
 }
 
@@ -246,6 +254,9 @@ export function drawSprite(ctx, sprite, x, y, opts = {}) {
   if (!sprite) return;
   const prevAlpha = ctx.globalAlpha;
   const prevOp = ctx.globalCompositeOperation;
+  const prevSmooth = ctx.imageSmoothingEnabled;
+  // Pixel sprites stay crisp even when the buffer renders at an HD scale.
+  ctx.imageSmoothingEnabled = false;
   if (alpha !== 1) ctx.globalAlpha = prevAlpha * alpha;
   if (blend) ctx.globalCompositeOperation = blend;
   const dx = Math.round(x - sprite.w / 2);
@@ -268,6 +279,7 @@ export function drawSprite(ctx, sprite, x, y, opts = {}) {
   }
   ctx.globalAlpha = prevAlpha;
   ctx.globalCompositeOperation = prevOp;
+  ctx.imageSmoothingEnabled = prevSmooth;
 }
 
 /* ------------------------------------------------------------------ */

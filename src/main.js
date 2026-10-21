@@ -229,12 +229,13 @@ function runSelfTest() {
   });
   check('title canvas has visible pixels', () => {
     const ctx = renderer.screen.ctx;
-    const data = ctx.getImageData(0, 0, 240, 420).data;
+    const cvs = renderer.screen.canvas;
+    const data = ctx.getImageData(0, 0, cvs.width, cvs.height).data;
     let lit = 0;
     for (let i = 0; i < data.length; i += 4) {
       if (data[i] + data[i + 1] + data[i + 2] > 90) lit += 1;
     }
-    return lit > 8000;
+    return lit > cvs.width * cvs.height * 0.06;
   });
   check('run starts', () => {
     game.startRun();
@@ -253,19 +254,24 @@ function runSelfTest() {
     return true;
   });
   check('gameplay canvas has visible pixels', () => {
-    const data = renderer.screen.ctx.getImageData(0, 0, 240, 420).data;
+    const ctx = renderer.screen.ctx;
+    const cvs = renderer.screen.canvas;
+    const data = ctx.getImageData(0, 0, cvs.width, cvs.height).data;
     let lit = 0;
     for (let i = 0; i < data.length; i += 4) {
       if (data[i] + data[i + 1] + data[i + 2] > 90) lit += 1;
     }
-    return lit > 8000;
+    return lit > cvs.width * cvs.height * 0.06;
   });
   check('HUD renders score digits', () => {
     renderer.render(game, { isTouch: false }, 1 / 60);
-    const data = renderer.screen.ctx.getImageData(6, 8, 90, 18).data;
+    const s = renderer.screen.scale || 1;
+    const data = renderer.screen.ctx.getImageData(
+      Math.round(6 * s), Math.round(8 * s), Math.round(90 * s), Math.round(18 * s),
+    ).data;
     let lit = 0;
     for (let i = 0; i < data.length; i += 4) if (data[i] > 150) lit += 1;
-    return lit > 40;
+    return lit > 40 * s * s;
   });
   check('formation split renders', () => {
     const g = new Game({ audio, fx: renderer.fx, settings, seed: 77 });
