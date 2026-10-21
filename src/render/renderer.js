@@ -12,17 +12,19 @@ import {
   drawVignette, mix,
 } from './pixel.js';
 import { drawText, measureText } from './pixelfont.js';
-import { drawTitle } from './title.js';
-import { Background } from './background.js';
+import { drawTitleHD } from './art_title.js';
 import {
-  drawHud, drawBossBar, drawBanner, drawPopups, drawFormationHud, drawTouchControls,
-} from './hud.js';
+  drawHudHD, drawBossBarHD, drawBannerHD, drawPopupsHD, drawFormationHudHD, drawTouchControlsHD,
+} from './ui_hd.js';
 import {
   drawHowto, drawCredits, drawOptions, drawPause, drawGameover,
 } from './screens.js';
 import { PLAYER, MODULE_BY_ID, MODULE_DEFS, MODULE_ORDER, FIELD, PODS } from '../game/config.js';
 import { drawPlayerCraftHD } from './art_player.js';
 import { drawEnemyArt } from './art_enemies.js';
+import { drawPodHD, drawModulePickupHD, drawGemHD, drawNovaHD, drawHeartHD } from './art_pickups.js';
+import { drawBossHD } from './art_boss.js';
+import { BackgroundHD } from './art_background.js';
 import { clamp, formatScore, TAU } from '../core/math.js';
 
 const COLORS = {
@@ -46,7 +48,7 @@ export class Renderer {
     this.sprites = sprites;
     this.screen = new PixelScreen(PIX_W, PIX_H, 1);
     this.screenScale = 1;
-    this.bg = new Background(1985);
+    this.bgHD = new BackgroundHD();
     this.clock = 0;
     this.particles = [];
     this.shakeAmt = 0;
@@ -112,19 +114,21 @@ export class Renderer {
 
     switch (game.scene) {
       case 'title':
-        drawTitle(ctx, game.time, {
+        drawTitleHD(ctx, game.time, {
           menuIndex: game.menuIndex,
           hiScore: game.hiScore,
-          sprites: this.sprites,
+          bg: this.bgHD,
+          scale: this.screenScale,
         });
         break;
       case 'howto':
       case 'credits':
       case 'options':
-        drawTitle(ctx, game.time, {
+        drawTitleHD(ctx, game.time, {
           menuIndex: -1,
           hiScore: game.hiScore,
-          sprites: this.sprites,
+          bg: this.bgHD,
+          scale: this.screenScale,
         });
         if (game.scene === 'howto') drawHowto(ctx, game);
         else if (game.scene === 'credits') drawCredits(ctx, game, game.time);
@@ -144,9 +148,12 @@ export class Renderer {
     }
 
     if (game.settings.showFps) {
-      drawText(ctx, Math.round(this.fps) + ' FPS', 234, 414, {
-        align: 'right', scale: 1, spacing: 0, color: P.steelMid, alpha: 0.8,
-      });
+      ctx.save();
+      ctx.font = '600 5px "Bahnschrift", "Segoe UI", Arial, sans-serif';
+      ctx.textAlign = 'right';
+      ctx.fillStyle = withAlpha(P.steelMid, 0.85);
+      ctx.fillText(Math.round(this.fps) + ' FPS', 234, 417);
+      ctx.restore();
     }
     return this.screen;
   }
@@ -197,7 +204,7 @@ export class Renderer {
   drawGame(ctx, game, input, frozen) {
     const theme = game.theme || THEMES[0];
     const scroll = (game.runTime || 0) * 34 + (game.stage - 1) * 90;
-    this.bg.draw(ctx, theme, scroll, game.time, { dim: 1 });
+    this.bgHD.draw(ctx, theme, scroll, game.time, this.screenScale);
 
     // Gameplay entities are clipped below the HUD so nothing bleeds into it.
     ctx.save();
@@ -214,12 +221,12 @@ export class Renderer {
     this.drawParticles(ctx);
     ctx.restore();
 
-    drawHud(ctx, game);
-    drawBossBar(ctx, game);
-    drawFormationHud(ctx, game);
-    drawBanner(ctx, game);
-    drawPopups(ctx, game);
-    drawTouchControls(ctx, game, input && input.isTouch);
+    drawHudHD(ctx, game);
+    drawBossBarHD(ctx, game);
+    drawFormationHudHD(ctx, game);
+    drawBannerHD(ctx, game);
+    drawPopupsHD(ctx, game);
+    drawTouchControlsHD(ctx, game, input && input.isTouch);
 
     // First-run guidance: teach the pod → module loop in the first seconds.
     if (game.scene === 'playing' && game.stage === 1 && game.tutorialTimer > 0 && !game.player.hasAllModules) {
@@ -304,15 +311,18 @@ export class Renderer {
     // Phoenix-ready prompt floats above the ship (never collides with the HUD).
     if (p.hasAllModules && !p.phoenixActive) {
       const blinkOn = Math.floor(this.clock * 4) % 2 === 0;
-      drawText(ctx, 'PHOENIX READY', p.x, p.y - 32, {
-        align: 'center', scale: 1, spacing: 1,
-        color: blinkOn ? P.orangeHi : P.orange,
-        shadow: { x: 1, y: 1, color: 'rgba(0,0,0,0.8)' },
-      });
-      drawText(ctx, 'PRESS X', p.x, p.y - 24, {
-        align: 'center', scale: 1, spacing: 1, color: P.goldHi,
-        shadow: { x: 1, y: 1, color: 'rgba(0,0,0,0.8)' },
-      });
+      ctx.save();
+      ctx.textAlign = 'center';
+      ctx.font = '800 6px "Bahnschrift", "Segoe UI", Arial, sans-serif';
+      try { ctx.letterSpacing = '1.2px'; } catch { /* ignore */ }
+      ctx.shadowColor = 'rgba(0,0,0,0.85)';
+      ctx.shadowBlur = 3;
+      ctx.fillStyle = blinkOn ? P.orangeHi : P.orange;
+      ctx.fillText('PHOENIX READY', p.x, p.y - 30);
+      ctx.font = '800 5.4px "Bahnschrift", "Segoe UI", Arial, sans-serif';
+      ctx.fillStyle = P.goldHi;
+      ctx.fillText('PRESS X', p.x, p.y - 23);
+      ctx.restore();
     }
     ctx.globalAlpha = prevAlpha;
   }
@@ -624,50 +634,16 @@ export class Renderer {
     if (!cluster) return;
     for (const pod of cluster.pods) {
       if (pod.dead) continue;
-      const spriteKey = pod.num == null ? '4' : String(pod.num);
-      const sprite = this.sprites.pods[spriteKey] || this.sprites.pod;
-      const bob = Math.sin(this.clock * 2 + pod.x * 0.2) * 1;
-      const accent = pod.num == null ? P.goldHi : (MODULE_DEFS.find((m) => m.num === pod.num) || {}).accent || P.cyanHi;
-      const base = pod.num == null ? P.gold : (MODULE_DEFS.find((m) => m.num === pod.num) || {}).color || P.cyan;
-      // Ground shadow + aura.
-      glow(ctx, pod.x, pod.y + 6, 16, base, 0.22 + 0.06 * Math.sin(this.clock * 4 + pod.x));
-      circle(ctx, pod.x, pod.y + 9, 7, withAlpha(P.black, 0.35));
-      ring(ctx, pod.x, pod.y + 1, 9 + Math.sin(this.clock * 3 + pod.x) * 1.2, withAlpha(accent, 0.22), 1);
-      drawSprite(ctx, sprite, pod.x, pod.y + bob);
-      drawText(ctx, pod.num == null ? '✦' : String(pod.num), pod.x, pod.y + 13, {
-        align: 'center', scale: 1, spacing: 0, color: accent,
-        shadow: { x: 1, y: 1, color: 'rgba(0,0,0,0.85)' },
-      });
-      if (pod.flash > 0) {
-        drawSprite(ctx, sprite, pod.x, pod.y + bob, { flash: true, alpha: Math.min(1, pod.flash) });
-      }
+      drawPodHD(ctx, pod, this.clock);
     }
   }
 
   drawPickups(ctx, game) {
     for (const item of game.pickups) {
-      const t = item.t;
-      if (item.kind === 'module') {
-        const def = MODULE_DEFS.find((m) => m.num === item.num);
-        const color = def ? def.color : P.gold;
-        const accent = def ? def.accent : P.goldHi;
-        const pulse = 0.6 + 0.4 * Math.sin(t * 6);
-        glow(ctx, item.x, item.y, 14, color, 0.3 * pulse);
-        ring(ctx, item.x, item.y, 8 + Math.sin(t * 4) * 1.5, withAlpha(accent, 0.6), 1);
-        circle(ctx, item.x, item.y, 5, withAlpha(P.void, 0.8));
-        frameRect(ctx, item.x - 4, item.y - 4, 9, 9, accent);
-        drawText(ctx, String(item.num), item.x, item.y - 3, { align: 'center', scale: 1, color: accent });
-      } else if (item.kind === 'gem') {
-        const sprite = this.sprites.gems[item.relic ? 'gold' : 'cyan'];
-        glow(ctx, item.x, item.y, 8, item.relic ? P.gold : P.cyan, 0.25);
-        drawSprite(ctx, sprite, item.x, item.y + Math.sin(t * 5) * 1.5);
-      } else if (item.kind === 'nova') {
-        glow(ctx, item.x, item.y, 10, P.orange, 0.3);
-        drawSprite(ctx, this.sprites.nova, item.x, item.y + Math.sin(t * 4) * 1.5);
-      } else if (item.kind === 'heart') {
-        glow(ctx, item.x, item.y, 10, P.red, 0.3);
-        drawHeartPickup(ctx, item.x, item.y + Math.sin(t * 4) * 1.5, P.red);
-      }
+      if (item.kind === 'module') drawModulePickupHD(ctx, item, this.clock);
+      else if (item.kind === 'gem') drawGemHD(ctx, item, this.clock);
+      else if (item.kind === 'nova') drawNovaHD(ctx, item, this.clock);
+      else if (item.kind === 'heart') drawHeartHD(ctx, item, this.clock);
     }
   }
 
@@ -675,7 +651,7 @@ export class Renderer {
    * The Null Court Colossus: a baroque marble war-mask with floating fists.
    * Drawn from pixel polygons so the whole boss costs zero assets.
    */
-  drawBoss(ctx, game) {
+  drawBossPixel(ctx, game) {
     const boss = game.boss;
     if (!boss) return;
     const t = this.clock;
@@ -864,6 +840,20 @@ export class Renderer {
       circle(ctx, x, y, 30, P.white);
       ctx.globalAlpha = prevA;
     }
+  }
+
+  /** HD vector Colossus: marble war-mask, floating fists, phase states. */
+  drawBoss(ctx, game) {
+    const boss = game.boss;
+    if (!boss) return;
+    if (boss.state === 'dying' && Math.random() < 0.28) {
+      this.spawnExplosion(
+        boss.x + (Math.random() - 0.5) * 84,
+        boss.y + (Math.random() - 0.5) * 54,
+        'medium',
+      );
+    }
+    drawBossHD(ctx, boss, this.clock, game);
   }
 
   /* ---------------------------------------------------------------- */
