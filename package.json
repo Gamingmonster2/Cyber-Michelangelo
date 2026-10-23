@@ -1,6 +1,6 @@
 {
   "name": "cyber-michelangelo",
-  "version": "1.4.0",
+  "version": "1.5.0",
   "private": true,
   "type": "module",
   "description": "Cyber Michelangelo — سايبر مايكل أنجلو — a zero-dependency HTML5 Canvas vertical shmup inspired by Terra Cresta (1985).",

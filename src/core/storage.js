@@ -97,19 +97,23 @@ export const KEYS = {
 };
 
 export const DEFAULT_SETTINGS = Object.freeze({
-  music: 7,
+  music: 5,
   sfx: 8,
   autoFire: false,
   shake: true,
   scanlines: true,
   showFps: false,
   renderStyle: 'hd', // 'hd' (HD-2D) | '3d' (optional WebGL renderer)
-  musicStyle: 'chiptune', // 'chiptune' (procedural) | 'cc0' (sampled CC0 soundtrack)
+  musicStyle: 'nature', // 'nature' (field recordings) | 'chiptune' (procedural)
 });
 
 export function loadSettings() {
   const saved = getJSON(KEYS.settings, null);
-  return { ...DEFAULT_SETTINGS, ...(saved && typeof saved === 'object' ? saved : {}) };
+  const merged = { ...DEFAULT_SETTINGS, ...(saved && typeof saved === 'object' ? saved : {}) };
+  // The short-lived 'cc0' music style was replaced by the nature ambience.
+  if (merged.musicStyle === 'cc0') merged.musicStyle = 'nature';
+  if (merged.musicStyle !== 'chiptune') merged.musicStyle = 'nature';
+  return merged;
 }
 
 export function saveSettings(settings) {

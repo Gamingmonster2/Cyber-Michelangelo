@@ -1,10 +1,12 @@
 /**
- * Procedural chiptune + SFX engine (WebAudio, zero audio assets).
+ * Audio engine: procedural SFX + soundtrack.
  *
- * The music is a tiny look-ahead sequencer: main() calls tick() every frame,
- * which schedules 16th-note steps slightly ahead of the audio clock. Tracks
- * are defined as chord loops with bass / arp / pad / drum layers.
+ * The default soundtrack is a *nature ambience* system (layered field
+ * recordings of forest, water, wind, rain and caves — see
+ * `src/core/ambience.js`), with the original procedural chiptune kept as an
+ * optional fallback style. All SFX are synthesised at runtime.
  */
+import { AmbienceEngine, bedForScene } from './ambience.js';
 
 const A3 = 57; // MIDI note of A3 (220 Hz)
 
@@ -46,16 +48,9 @@ const TRACKS = {
 };
 
 /**
- * CC0 soundtrack (OpenGameArt) — optional alternative to the procedural
- * chiptune. Only downloaded when the player selects the CC0 music style.
- * Sources/attribution: assets/audio/cc0/CREDITS.md and README.
+ * CC0 soundtrack support lives in `src/core/ambience.js` (nature beds).
+ * The chiptune sequencer below is the optional legacy soundtrack style.
  */
-export const CC0_TRACKS = {
-  title: 'assets/audio/cc0/title-galactic-temple.ogg',
-  stage: 'assets/audio/cc0/stage-high-energy.ogg',
-  boss: 'assets/audio/cc0/boss-fast-fight.wav',
-  gameover: 'assets/audio/cc0/gameover-dark-intro.ogg',
-};
 
 function everyTwo(step) {
   return step % 2 === 0;
@@ -86,12 +81,11 @@ export class AudioEngine {
     this.sfxGain = null;
     this.lastSfx = new Map();
     this.unlockTried = false;
-    // Music style: 'chiptune' (procedural, default) or 'cc0' (sampled tracks).
-    this.musicStyle = 'chiptune';
-    this.externalBuffers = new Map();
-    this.externalSource = null;
-    this.externalGain = null;
-    this.externalLoading = null;
+    // Soundtrack: 'nature' (default, layered field recordings) or
+    // 'chiptune' (the procedural sequencer, kept as an optional legacy style).
+    this.musicStyle = 'nature';
+    this.themeId = null;
+    this.ambience = null;
   }
 
   /* ---------------------------------------------------------------- */
@@ -147,8 +141,11 @@ export class AudioEngine {
       this.ready = true;
       this.nextStepTime = ctx.currentTime + 0.12;
       if (this.pendingTrack) {
+        // The track may already equal this.track (it was set before the
+        // AudioContext existed); reset it so music() actually starts playback.
         const t = this.pendingTrack;
         this.pendingTrack = null;
+        this.track = null;
         this.music(t);
       } else if (this.track) {
         this.startTrack(this.track);
@@ -186,86 +183,45 @@ export class AudioEngine {
   }
 
   /* ---------------------------------------------------------------- */
-  /* Music                                                            */
+  /* Soundtrack                                                       */
   /* ---------------------------------------------------------------- */
 
-  /** Switch between the procedural chiptune and the CC0 sampled soundtrack. */
+  /** Switch between the nature ambience and the procedural chiptune. */
   setMusicStyle(style) {
-    const next = style === 'cc0' ? 'cc0' : 'chiptune';
+    const next = style === 'chiptune' ? 'chiptune' : 'nature';
     if (next === this.musicStyle) return;
     this.musicStyle = next;
-    this.stopExternal();
+    this.stopAmbience();
     this.step = 0;
     if (this.ctx) this.nextStepTime = this.ctx.currentTime + 0.08;
     if (this.track) this.startTrack(this.track);
   }
 
+  /** Stage theme changed while a run is in progress: swap the stage ambience. */
+  setTheme(themeId) {
+    if (!themeId || themeId === this.themeId) return;
+    this.themeId = themeId;
+    if (this.musicStyle === 'nature' && this.ambience && this.track === 'stage') {
+      this.ambience.setBed(bedForScene('stage', themeId));
+    }
+  }
+
   startTrack(track) {
-    if (this.musicStyle === 'cc0') {
-      this.playExternal(track);
+    if (this.musicStyle === 'nature') {
+      if (!this.ctx) return;
+      if (!this.ambience) this.ambience = new AmbienceEngine(this.ctx, this.musicGain);
+      this.ambience.setBed(bedForScene(track, this.themeId));
       return;
     }
-    this.stopExternal();
+    this.stopAmbience();
     this.step = 0;
     if (this.ctx) this.nextStepTime = this.ctx.currentTime + 0.08;
   }
 
-  async playExternal(track) {
-    const url = CC0_TRACKS[track];
-    if (!url || !this.ctx) return;
-    try {
-      const buffer = await this.loadExternal(url);
-      if (!buffer) return;
-      // Style may have changed while the sample was downloading.
-      if (this.musicStyle !== 'cc0' || this.track !== track) return;
-      this.stopExternal();
-      const src = this.ctx.createBufferSource();
-      src.buffer = buffer;
-      src.loop = true;
-      const gain = this.ctx.createGain();
-      gain.gain.value = 0.8;
-      src.connect(gain);
-      gain.connect(this.musicGain);
-      src.start();
-      this.externalSource = src;
-      this.externalGain = gain;
-    } catch (err) {
-      // Never let a missing/undecodable sample break the game: fall back to
-      // the procedural chiptune and remember nothing (user can retry).
-      console.warn('[audio] CC0 track unavailable, using chiptune:', err);
-      this.musicStyle = 'chiptune';
-      this.stopExternal();
-      this.step = 0;
-      if (this.ctx) this.nextStepTime = this.ctx.currentTime + 0.08;
-    }
-  }
-
-  loadExternal(url) {
-    if (this.externalBuffers.has(url)) return Promise.resolve(this.externalBuffers.get(url));
-    if (this.externalLoading && this.externalLoading.url === url) return this.externalLoading.promise;
-    const promise = fetch(url)
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status} for ${url}`);
-        return res.arrayBuffer();
-      })
-      .then((data) => this.ctx.decodeAudioData(data))
-      .then((buffer) => {
-        this.externalBuffers.set(url, buffer);
-        return buffer;
-      });
-    this.externalLoading = { url, promise };
-    return promise;
-  }
-
-  stopExternal() {
-    if (this.externalSource) {
-      try { this.externalSource.stop(); } catch { /* already stopped */ }
-      try { this.externalSource.disconnect(); } catch { /* ignore */ }
-      this.externalSource = null;
-    }
-    if (this.externalGain) {
-      try { this.externalGain.disconnect(); } catch { /* ignore */ }
-      this.externalGain = null;
+  stopAmbience() {
+    if (this.ambience) {
+      try { this.ambience.stop(); } catch { /* ignore */ }
+      this.ambience = null;
     }
   }
 
@@ -281,8 +237,14 @@ export class AudioEngine {
   }
 
   tick() {
-    if (!this.ready || !this.track || this.muted) return;
-    if (this.musicStyle === 'cc0') return; // the sample plays itself
+    if (!this.ready || !this.track) return;
+    if (this.musicStyle === 'nature') {
+      // Ambience keeps scheduling even while muted (master gain handles mute),
+      // otherwise loops would stall and fail to resume.
+      this.ambience?.tick();
+      return;
+    }
+    if (this.muted) return;
     const ctx = this.ctx;
     const config = TRACKS[this.track];
     if (!config) return;

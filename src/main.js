@@ -55,7 +55,7 @@ if (params.has('fps')) settings.showFps = true;
 if (params.has('noscanlines')) settings.scanlines = false;
 if (params.get('style') === '3d') settings.renderStyle = '3d';
 else if (params.get('style') === 'hd') settings.renderStyle = 'hd';
-if (params.has('cc0music')) settings.musicStyle = 'cc0';
+if (params.get('audio') === 'chiptune') settings.musicStyle = 'chiptune';
 audio.setMusicStyle(settings.musicStyle);
 
 const seedParam = Number(params.get('seed'));
@@ -64,6 +64,7 @@ const game = new Game({
   fx: renderer.fx,
   settings,
   seed: Number.isFinite(seedParam) && seedParam > 0 ? Math.floor(seedParam) : 1985,
+  onTheme: (themeId) => audio.setTheme(themeId),
 });
 
 const input = new InputManager(canvas, {
@@ -150,6 +151,49 @@ if (requestedScene && requestedScene !== 'title') {
   }
 } else if (params.has('autoplay')) {
   game.startRun();
+}
+
+// Headless audio verification hook: unlocks WebAudio, lets the ambience engine
+// load the current scene's recordings, then reports its state into the DOM.
+if (params.has('audio-probe')) {
+  setTimeout(async () => {
+    const payload = { ok: false };
+    try {
+      await audio.unlock();
+      const forcedTrack = params.get('probe-track');
+      if (forcedTrack) audio.music(forcedTrack);
+      await new Promise((resolve) => setTimeout(resolve, 4500));
+      const bed = audio.ambience && audio.ambience.bed;
+      const layers = bed ? bed.layers.map((layer) => ({
+        url: layer.def.url,
+        loaded: Boolean(layer.buffer),
+        failed: Boolean(layer.failed),
+        procedural: Boolean(layer.proc),
+      })) : [];
+      const loaded = layers.filter((l) => l.loaded).length;
+      payload.ok = Boolean(audio.ctx) && loaded >= 1;
+      payload.ctxState = audio.ctx ? audio.ctx.state : null;
+      payload.style = audio.musicStyle;
+      payload.track = audio.track;
+      payload.theme = audio.themeId;
+      payload.bed = bed ? bed.key : null;
+      payload.layers = layers;
+      payload.loaded = loaded;
+      payload.sampleRate = audio.ctx ? audio.ctx.sampleRate : null;
+      payload.ctxTime = audio.ctx ? Math.round(audio.ctx.currentTime * 100) / 100 : null;
+    } catch (err) {
+      payload.error = String(err && err.stack ? err.stack : err);
+    }
+    let pre = document.getElementById('audio-probe');
+    if (!pre) {
+      pre = document.createElement('pre');
+      pre.id = 'audio-probe';
+      pre.style.cssText = 'position:fixed;left:-9999px;top:0;white-space:pre;';
+      document.body.appendChild(pre);
+    }
+    pre.textContent = JSON.stringify(payload, null, 1);
+    document.title = payload.ok ? 'CM AUDIO PROBE OK' : 'CM AUDIO PROBE FAIL';
+  }, 320);
 }
 const frozen = params.has('freeze');
 if (params.has('touch')) input.touchMode = true;
@@ -361,38 +405,37 @@ async function runSelfTest() {
     results.push({ name: '3D renderer (three.js)', ok: true, note: `WebGL unavailable — skipped (${String(err && err.message ? err.message : err)})` });
   }
 
-  // Optional CC0 soundtrack: every track must be present and non-empty.
+  // Nature ambience: every field recording must be present and non-empty.
   try {
-    const { CC0_TRACKS } = await import('./core/audio.js');
-    const entries = Object.entries(CC0_TRACKS);
+    const { NATURE_FILES } = await import('./core/ambience.js');
+    const entries = Object.entries(NATURE_FILES);
     const missing = [];
-    for (const [track, url] of entries) {
+    for (const [name, url] of entries) {
       try {
         const res = await fetch(url, { method: 'HEAD' });
         const len = Number(res.headers.get('content-length') || 0);
-        if (!res.ok || (len > 0 && len < 20000)) missing.push(`${track}: HTTP ${res.status} / ${len}B`);
+        if (!res.ok || (len > 0 && len < 20000)) missing.push(`${name}: HTTP ${res.status} / ${len}B`);
       } catch (err) {
-        missing.push(`${track}: ${String(err && err.message ? err.message : err)}`);
+        missing.push(`${name}: ${String(err && err.message ? err.message : err)}`);
       }
     }
     results.push({
-      name: 'CC0 soundtrack assets available',
+      name: 'Nature ambience recordings available',
       ok: missing.length === 0,
-      note: missing.length ? missing.join(' · ') : `${entries.length} tracks ready`,
+      note: missing.length ? missing.join(' · ') : `${entries.length} recordings ready`,
     });
 
-    // Codec probe: confirms the browser can play OGG (3 tracks) and WAV (1)
+    // Codec probe: confirms the browser can decode the OGG ambience beds
     // without creating an AudioContext during the headless self-test.
     const probe = document.createElement('audio');
     const oggOk = probe.canPlayType('audio/ogg; codecs="vorbis"') !== '';
-    const wavOk = probe.canPlayType('audio/wav') !== '';
     results.push({
-      name: 'Browser audio codecs support CC0 tracks',
-      ok: oggOk && wavOk,
-      note: `ogg=${oggOk} wav=${wavOk}`,
+      name: 'Browser can decode OGG nature recordings',
+      ok: oggOk,
+      note: `ogg=${oggOk}`,
     });
   } catch (err) {
-    results.push({ name: 'CC0 soundtrack assets available', ok: false, error: String(err) });
+    results.push({ name: 'Nature ambience recordings available', ok: false, error: String(err) });
   }
 
   const ok = results.every((r) => r.ok);

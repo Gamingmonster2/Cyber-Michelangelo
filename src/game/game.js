@@ -36,9 +36,9 @@ export function titleItems(settings = {}) {
 }
 export const PAUSE_ITEMS = ['RESUME', 'RESTART', 'QUIT TO TITLE'];
 export const OPTION_ITEMS = [
-  { key: 'music', label: 'MUSIC', type: 'volume' },
+  { key: 'music', label: 'AMBIENCE', type: 'volume' },
   { key: 'sfx', label: 'SFX', type: 'volume' },
-  { key: 'musicStyle', label: 'MUSIC STYLE', type: 'choice', choices: ['chiptune', 'cc0'] },
+  { key: 'musicStyle', label: 'SOUNDTRACK', type: 'choice', choices: ['nature', 'chiptune'] },
   { key: 'autoFire', label: 'AUTO FIRE', type: 'bool' },
   { key: 'shake', label: 'SCREEN SHAKE', type: 'bool' },
   { key: 'scanlines', label: 'SCANLINES', type: 'bool' },
@@ -50,6 +50,7 @@ export class Game {
   constructor(opts = {}) {
     this.fx = opts.fx || NOOP_FX;
     this.audio = opts.audio || null;
+    this.onTheme = typeof opts.onTheme === 'function' ? opts.onTheme : null;
     this.hooks = {
       sfx: (name, options) => {
         if (this.audio && typeof this.audio.sfx === 'function') this.audio.sfx(name, options);
@@ -335,6 +336,7 @@ export class Game {
     const info = stageInfo(this.stage);
     this.loop = info.loop;
     this.theme = info.theme;
+    if (this.onTheme) this.onTheme(this.theme.id);
     this.stagePlan = createStage(this.stage, this.seed);
     this.scaling = {
       hpMul: DIFFICULTY.enemyHp(this.stage, this.loop),

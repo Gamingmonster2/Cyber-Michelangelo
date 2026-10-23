@@ -205,8 +205,9 @@ export function drawCredits(ctx, game, time) {
     ['BUILT WITH AI ASSISTANCE', P.orangeHi, 1],
     ['OPTIONAL 3D MODE · THREE.JS (MIT)', P.cyan, 1],
     ['3D MODELS BUILT PROCEDURALLY', P.marbleSh, 1],
-    ['CC0 MUSIC: YD · SRG774 · XCVG', P.green, 1],
-    ['VILLE NOUSIAINEN · NIKKE · OPEN GAME ART', P.marbleSh, 1],
+    ['NATURE SOUND: NILLE · STEPHAN', P.green, 1],
+    ['ÉCRIVAIN · YLMIR · WUXIASCRUB · P. WORTMANN', P.marbleSh, 1],
+    ['PUBLIC DOMAIN · CC0 1.0', P.cyan, 1],
     ['WITH RESPECT TO THE ORIGINAL', P.marbleSh, 1],
     ['HALL OF SHOOTERS', P.marbleSh, 1],
   ];
@@ -284,12 +285,12 @@ export function drawOptions(ctx, game) {
       label(ctx, on ? 'ON' : 'OFF', 166, y, { size: 4.6, color: on ? P.cyanHi : P.marbleSh, tracking: 1 });
     } else if (item.type === 'choice') {
       const CHOICE_LABELS = {
-        hd: 'HD-2D', '3d': '3D WEBGL', chiptune: 'CHIPTUNE', cc0: 'CC0 MUSIC',
+        hd: 'HD-2D', '3d': '3D WEBGL', chiptune: 'CHIPTUNE', nature: 'NATURE',
       };
       const raw = game.settings[item.key];
       const pretty = CHOICE_LABELS[raw] || String(raw).toUpperCase();
-      const hot = raw === '3d' || raw === 'cc0';
-      const accent = raw === '3d' ? P.violet : hot ? P.green : P.cyanHi;
+      const hot = raw === '3d' || raw === 'nature';
+      const accent = raw === '3d' ? P.violet : raw === 'nature' ? P.green : P.cyanHi;
       const bx = 118;
       rr(ctx, bx, y - 6.5, 72, 12, 5.5);
       ctx.fillStyle = hot ? withAlpha(accent, 0.16) : withAlpha(P.cyan, 0.1);

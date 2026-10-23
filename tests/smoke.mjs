@@ -12,7 +12,7 @@ import {
   ENEMY_TYPES, DIFFICULTY, stageInfo,
 } from '../src/game/config.js';
 import { OPTION_ITEMS } from '../src/game/game.js';
-import { CC0_TRACKS } from '../src/core/audio.js';
+import { NATURE_BEDS, NATURE_FILES, bedForScene } from '../src/core/ambience.js';
 import { RNG, clamp, lerp, formatScore, hashSeed } from '../src/core/math.js';
 import { P } from '../src/render/palette.js';
 import { _resetMemoryStore, getItem, KEYS } from '../src/core/storage.js';
@@ -173,24 +173,41 @@ test('options screen can switch the renderer as well', () => {
   g.update(1 / 60, { confirm: true });
   assert.equal(g.settings.renderStyle, '3d');
 });
-test('music style option switches between chiptune and the CC0 soundtrack', () => {
+test('soundtrack option switches between nature ambience and chiptune', () => {
   const g = new Game({ seed: 1 });
-  assert.equal(g.settings.musicStyle, 'chiptune');
+  assert.equal(g.settings.musicStyle, 'nature', 'nature ambience is the default');
   g.goToScene('options');
   const idx = OPTION_ITEMS.findIndex((o) => o.key === 'musicStyle');
-  assert.ok(idx >= 0, 'MUSIC STYLE option exists');
+  assert.ok(idx >= 0, 'SOUNDTRACK option exists');
   g.optionIndex = idx;
   g.update(1 / 60, { confirm: true });
-  assert.equal(g.settings.musicStyle, 'cc0');
-  g.update(1 / 60, { confirm: true });
   assert.equal(g.settings.musicStyle, 'chiptune');
+  g.update(1 / 60, { confirm: true });
+  assert.equal(g.settings.musicStyle, 'nature');
 });
-test('CC0 soundtrack map covers all four music scenes', () => {
-  for (const track of ['title', 'stage', 'boss', 'gameover']) {
-    assert.ok(CC0_TRACKS[track], `missing CC0 track for ${track}`);
-    assert.match(CC0_TRACKS[track], /^assets\/audio\/cc0\/.+\.(ogg|wav)$/);
+test('nature beds cover every scene and stage theme', () => {
+  for (const key of ['title', 'garden', 'catacomb', 'cathedral', 'boss', 'gameover']) {
+    const bed = NATURE_BEDS[key];
+    assert.ok(bed, `missing bed ${key}`);
+    assert.ok(bed.layers.length >= 1, `bed ${key} has layers`);
+    for (const layer of bed.layers) {
+      assert.match(layer.url, /^assets\/audio\/nature\/.+\.ogg$/);
+      assert.ok(layer.gain > 0 && layer.gain <= 1, `bed ${key} layer gain in range`);
+    }
   }
-  assert.equal(Object.keys(CC0_TRACKS).length, 4);
+  assert.equal(bedForScene('title', null), 'title');
+  assert.equal(bedForScene('boss', 'gardens'), 'boss');
+  assert.equal(bedForScene('gameover', null), 'gameover');
+  assert.equal(bedForScene('stage', 'gardens'), 'garden');
+  assert.equal(bedForScene('stage', 'catacombs'), 'catacomb');
+  assert.equal(bedForScene('stage', 'cathedral'), 'cathedral');
+  assert.equal(bedForScene('stage', undefined), 'garden');
+});
+test('nature audio files are all declared and local', () => {
+  const urls = Object.values(NATURE_FILES);
+  assert.ok(urls.length >= 7, 'at least seven nature recordings');
+  for (const url of urls) assert.match(url, /^assets\/audio\/nature\/.+\.ogg$/);
+  assert.equal(new Set(urls).size, urls.length, 'no duplicate files');
 });
 test('how to play / credits / options screens open and close', () => {
   const g = new Game({ seed: 1 });
