@@ -104,15 +104,15 @@ export const DEFAULT_SETTINGS = Object.freeze({
   scanlines: true,
   showFps: false,
   renderStyle: 'hd', // 'hd' (HD-2D) | '3d' (optional WebGL renderer)
-  musicStyle: 'nature', // 'nature' (field recordings) | 'chiptune' (procedural)
+  musicStyle: 'space', // 'space' (space-nature ambience) | 'nature' (field recordings) | 'chiptune'
 });
 
 export function loadSettings() {
   const saved = getJSON(KEYS.settings, null);
   const merged = { ...DEFAULT_SETTINGS, ...(saved && typeof saved === 'object' ? saved : {}) };
-  // The short-lived 'cc0' music style was replaced by the nature ambience.
-  if (merged.musicStyle === 'cc0') merged.musicStyle = 'nature';
-  if (merged.musicStyle !== 'chiptune') merged.musicStyle = 'nature';
+  // Migrate retired style names into the current set.
+  if (merged.musicStyle === 'cc0') merged.musicStyle = 'space';
+  if (!['space', 'nature', 'chiptune'].includes(merged.musicStyle)) merged.musicStyle = 'space';
   return merged;
 }
 

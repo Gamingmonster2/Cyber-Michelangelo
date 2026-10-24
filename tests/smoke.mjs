@@ -13,6 +13,8 @@ import {
 } from '../src/game/config.js';
 import { OPTION_ITEMS } from '../src/game/game.js';
 import { NATURE_BEDS, NATURE_FILES, bedForScene } from '../src/core/ambience.js';
+import { SPACE_LAYERS, SPACE_DETAILS, DUCK_PRESETS } from '../src/core/space_ambience.js';
+import { AudioEngine } from '../src/core/audio.js';
 import { RNG, clamp, lerp, formatScore, hashSeed } from '../src/core/math.js';
 import { P } from '../src/render/palette.js';
 import { _resetMemoryStore, getItem, KEYS } from '../src/core/storage.js';
@@ -173,17 +175,43 @@ test('options screen can switch the renderer as well', () => {
   g.update(1 / 60, { confirm: true });
   assert.equal(g.settings.renderStyle, '3d');
 });
-test('soundtrack option switches between nature ambience and chiptune', () => {
+test('soundtrack option cycles space-nature, nature and chiptune', () => {
   const g = new Game({ seed: 1 });
-  assert.equal(g.settings.musicStyle, 'nature', 'nature ambience is the default');
+  assert.equal(g.settings.musicStyle, 'space', 'space-nature ambience is the default');
   g.goToScene('options');
   const idx = OPTION_ITEMS.findIndex((o) => o.key === 'musicStyle');
   assert.ok(idx >= 0, 'SOUNDTRACK option exists');
   g.optionIndex = idx;
   g.update(1 / 60, { confirm: true });
+  assert.equal(g.settings.musicStyle, 'nature');
+  g.update(1 / 60, { confirm: true });
   assert.equal(g.settings.musicStyle, 'chiptune');
   g.update(1 / 60, { confirm: true });
-  assert.equal(g.settings.musicStyle, 'nature');
+  assert.equal(g.settings.musicStyle, 'space');
+});
+test('space-nature ambience config: two continuous layers + sparse details', () => {
+  assert.deepEqual(SPACE_LAYERS.map((l) => l.id), ['rumble', 'wind']);
+  assert.equal(SPACE_DETAILS.length, 3);
+  assert.deepEqual(SPACE_DETAILS.slice().sort(), ['drop', 'ice', 'thunder']);
+  for (const id of ['rumble', 'wind']) {
+    const layer = SPACE_LAYERS.find((l) => l.id === id);
+    assert.ok(layer.baseGain > 0 && layer.baseGain <= 1, `${id} has a sane base gain`);
+  }
+  for (const id of ['laser', 'enemyShot', 'explosion', 'playerDeath', 'nova', 'bigExplosion']) {
+    assert.ok(DUCK_PRESETS[id], `duck preset for ${id}`);
+    assert.ok(DUCK_PRESETS[id].depth > 0 && DUCK_PRESETS[id].depth <= 0.95, `${id} duck depth in range`);
+    assert.ok(DUCK_PRESETS[id].dur > 0, `${id} duck duration in range`);
+  }
+});
+test('AudioEngine defaults to space-nature and normalises style names', () => {
+  const engine = new AudioEngine();
+  assert.equal(engine.musicStyle, 'space');
+  engine.setMusicStyle('chiptune');
+  assert.equal(engine.musicStyle, 'chiptune');
+  engine.setMusicStyle('cc0');
+  assert.equal(engine.musicStyle, 'space', 'retired names fall back to space');
+  engine.setMotion(0.75);
+  assert.equal(engine.motion, 0.75);
 });
 test('nature beds cover every scene and stage theme', () => {
   for (const key of ['title', 'garden', 'catacomb', 'cathedral', 'boss', 'gameover']) {

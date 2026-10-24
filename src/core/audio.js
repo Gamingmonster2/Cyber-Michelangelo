@@ -1,12 +1,15 @@
 /**
  * Audio engine: procedural SFX + soundtrack.
  *
- * The default soundtrack is a *nature ambience* system (layered field
- * recordings of forest, water, wind, rain and caves — see
- * `src/core/ambience.js`), with the original procedural chiptune kept as an
- * optional fallback style. All SFX are synthesised at runtime.
+ * Default soundtrack = “space nature” ambience (two synthesised continuous
+ * layers: low space rumble + drifting wind, plus rare random details) built by
+ * `src/core/space_ambience.js`. Two alternative styles remain available:
+ * recorded nature beds (`src/core/ambience.js`) and the original procedural
+ * chiptune. All SFX are synthesised at runtime from wood/water/ice/stone/
+ * thunder-flavoured layers and duck the ambience while they play.
  */
 import { AmbienceEngine, bedForScene } from './ambience.js';
+import { SpaceAmbienceEngine, DUCK_PRESETS } from './space_ambience.js';
 
 const A3 = 57; // MIDI note of A3 (220 Hz)
 
@@ -81,11 +84,14 @@ export class AudioEngine {
     this.sfxGain = null;
     this.lastSfx = new Map();
     this.unlockTried = false;
-    // Soundtrack: 'nature' (default, layered field recordings) or
-    // 'chiptune' (the procedural sequencer, kept as an optional legacy style).
-    this.musicStyle = 'nature';
+    // Soundtrack styles: 'space' (default, procedural space-nature ambience),
+    // 'nature' (recorded field beds) or 'chiptune' (legacy sequencer).
+    this.musicStyle = 'space';
     this.themeId = null;
     this.ambience = null;
+    this.space = null;
+    this.natureBus = null;
+    this.motion = 0;
   }
 
   /* ---------------------------------------------------------------- */
@@ -127,6 +133,21 @@ export class AudioEngine {
       this.sfxGain = ctx.createGain();
       this.sfxGain.gain.value = this.volumes.sfx * 0.55;
       this.sfxGain.connect(master);
+
+      // Short processed echo used by the nature-flavoured SFX (drops, chimes,
+      // splashes) to sit in the same space as the ambience reverb.
+      this.sfxEcho = ctx.createDelay(0.6);
+      this.sfxEcho.delayTime.value = 0.2;
+      this.sfxEchoFb = ctx.createGain();
+      this.sfxEchoFb.gain.value = 0.26;
+      this.sfxEcho.connect(this.sfxEchoFb);
+      this.sfxEchoFb.connect(this.sfxEcho);
+      this.sfxEcho.connect(this.sfxGain);
+
+      // Dedicated bus for recorded-nature beds so they can be ducked cleanly.
+      this.natureBus = ctx.createGain();
+      this.natureBus.gain.value = 1;
+      this.natureBus.connect(this.musicGain);
 
       // Small stereo delay for the arps adds arcade sparkle.
       this.delay = ctx.createDelay(0.5);
@@ -186,12 +207,13 @@ export class AudioEngine {
   /* Soundtrack                                                       */
   /* ---------------------------------------------------------------- */
 
-  /** Switch between the nature ambience and the procedural chiptune. */
+  /** Switch between space-nature, recorded nature and the chiptune. */
   setMusicStyle(style) {
-    const next = style === 'chiptune' ? 'chiptune' : 'nature';
+    const next = style === 'nature' ? 'nature' : style === 'chiptune' ? 'chiptune' : 'space';
     if (next === this.musicStyle) return;
     this.musicStyle = next;
     this.stopAmbience();
+    this.stopSpace();
     this.step = 0;
     if (this.ctx) this.nextStepTime = this.ctx.currentTime + 0.08;
     if (this.track) this.startTrack(this.track);
@@ -207,13 +229,24 @@ export class AudioEngine {
   }
 
   startTrack(track) {
+    if (this.musicStyle === 'space') {
+      if (!this.ctx) return;
+      this.stopAmbience();
+      if (!this.space) this.space = new SpaceAmbienceEngine(this.ctx, this.musicGain);
+      this.space.setMood(track === 'boss' ? 'boss' : track === 'gameover' ? 'gameover' : track === 'title' ? 'title' : 'stage');
+      this.space.start();
+      this.space.setMotion(this.motion);
+      return;
+    }
     if (this.musicStyle === 'nature') {
       if (!this.ctx) return;
-      if (!this.ambience) this.ambience = new AmbienceEngine(this.ctx, this.musicGain);
+      this.stopSpace();
+      if (!this.ambience) this.ambience = new AmbienceEngine(this.ctx, this.natureBus || this.musicGain);
       this.ambience.setBed(bedForScene(track, this.themeId));
       return;
     }
     this.stopAmbience();
+    this.stopSpace();
     this.step = 0;
     if (this.ctx) this.nextStepTime = this.ctx.currentTime + 0.08;
   }
@@ -223,6 +256,77 @@ export class AudioEngine {
       try { this.ambience.stop(); } catch { /* ignore */ }
       this.ambience = null;
     }
+  }
+
+  stopSpace() {
+    if (this.space) {
+      try { this.space.stop(); } catch { /* ignore */ }
+      this.space = null;
+    }
+  }
+
+  /** Movement intensity 0..1 — the wind rises slightly with speed. */
+  setMotion(level) {
+    this.motion = Math.max(0, Math.min(1, Number(level) || 0));
+    if (this.musicStyle === 'space' && this.space) this.space.setMotion(this.motion);
+  }
+
+  /** Temporarily lower the ambience so gameplay SFX stay clearly on top. */
+  duckBackground(depth = 0.5, seconds = 0.4) {
+    if (this.musicStyle === 'space') {
+      this.space?.duck(depth, seconds);
+      return;
+    }
+    if (this.musicStyle === 'nature' && this.natureBus && this.ctx) {
+      const now = this.ctx.currentTime;
+      const target = Math.max(0.0001, 1 - Math.max(0, Math.min(0.95, depth)));
+      try {
+        this.natureBus.gain.cancelScheduledValues(now);
+        this.natureBus.gain.setTargetAtTime(target, now, 0.035);
+        this.natureBus.gain.setTargetAtTime(1, now + Math.max(0.08, seconds), 0.35);
+      } catch { /* ignore */ }
+    }
+  }
+
+  /** State snapshot for the headless audio probe / debugging. */
+  getAudioState() {
+    const base = {
+      style: this.musicStyle,
+      track: this.track,
+      theme: this.themeId,
+      motion: this.motion,
+      ctxState: this.ctx ? this.ctx.state : null,
+      ctxTime: this.ctx ? Math.round(this.ctx.currentTime * 100) / 100 : null,
+      sampleRate: this.ctx ? this.ctx.sampleRate : null,
+    };
+    if (this.musicStyle === 'space' && this.space) {
+      return { ...base, space: this.space.getState() };
+    }
+    if (this.musicStyle === 'nature' && this.ambience) {
+      const bed = this.ambience.bed;
+      return {
+        ...base,
+        bed: bed ? bed.key : null,
+        layers: bed ? bed.layers.map((layer) => ({
+          url: layer.def.url,
+          loaded: Boolean(layer.buffer),
+          failed: Boolean(layer.failed),
+          procedural: Boolean(layer.proc),
+        })) : [],
+      };
+    }
+    return base;
+  }
+
+  /** Send an SFX node into the space ambience reverb, if it is available. */
+  sendReverb(node, amount = 0.25) {
+    if (!this.space || !this.space.active || !this.ctx) return;
+    try {
+      const send = this.ctx.createGain();
+      send.gain.value = Math.max(0, Math.min(1, amount));
+      node.connect(send);
+      send.connect(this.space.reverbSend);
+    } catch { /* ignore */ }
   }
 
   music(track) {
@@ -238,9 +342,12 @@ export class AudioEngine {
 
   tick() {
     if (!this.ready || !this.track) return;
+    if (this.musicStyle === 'space') {
+      // Ambience keeps scheduling even while muted (master gain handles mute).
+      this.space?.tick();
+      return;
+    }
     if (this.musicStyle === 'nature') {
-      // Ambience keeps scheduling even while muted (master gain handles mute),
-      // otherwise loops would stall and fail to resume.
       this.ambience?.tick();
       return;
     }
@@ -400,6 +507,84 @@ export class AudioEngine {
   }
 
   /* ---------------------------------------------------------------- */
+  /* Nature-flavoured SFX building blocks                             */
+  /* ---------------------------------------------------------------- */
+
+  woodClick(time, vol = 1) {
+    this.noise({ time, dur: 0.035, gain: 0.05 * vol, filterFrom: 2400, filterTo: 900 });
+    this.tone({ time, freq: 780, slideTo: 540, dur: 0.045, type: 'triangle', gain: 0.05 * vol });
+  }
+
+  bubble(time, vol = 1, base = 620) {
+    this.tone({ time, freq: base * 1.7, slideTo: base, dur: 0.075, type: 'sine', gain: 0.05 * vol });
+    this.tone({ time: time + 0.03, freq: base * 2.3, slideTo: base * 1.4, dur: 0.05, type: 'sine', gain: 0.02 * vol });
+  }
+
+  iceCrack(time, vol = 1, dark = false) {
+    const reps = dark ? 2 : 3;
+    for (let i = 0; i < reps; i++) {
+      const t = time + i * (0.02 + Math.random() * 0.035);
+      this.noise({
+        time: t, dur: 0.05, gain: (dark ? 0.05 : 0.04) * vol,
+        filterFrom: dark ? 1400 : 3600, filterTo: dark ? 500 : 2200, highpass: !dark,
+      });
+    }
+    if (dark) this.tone({ time, freq: 150, slideTo: 70, dur: 0.16, type: 'sine', gain: 0.06 * vol });
+  }
+
+  stoneCrumb(time, vol = 1) {
+    this.noise({ time, dur: 0.3, gain: 0.12 * vol, filterFrom: 1400, filterTo: 140 });
+    for (let i = 0; i < 3; i++) {
+      this.noise({ time: time + 0.03 + i * 0.045, dur: 0.06, gain: 0.03 * vol, filterFrom: 900, filterTo: 300 });
+    }
+  }
+
+  fireHiss(time, vol = 1) {
+    this.noise({ time, dur: 0.22, gain: 0.09 * vol, filterFrom: 1100, filterTo: 300 });
+    this.noise({ time, dur: 0.3, gain: 0.04 * vol, filterFrom: 4000, filterTo: 1200, highpass: true });
+  }
+
+  thunder(time, vol = 1) {
+    this.noise({ time, dur: 1.9, gain: 0.16 * vol, filterFrom: 420, filterTo: 70 });
+    this.tone({ time, freq: 46, slideTo: 28, dur: 1.6, type: 'sine', gain: 0.12 * vol });
+  }
+
+  quake(time, vol = 1) {
+    this.tone({ time, freq: 62, slideTo: 30, dur: 0.55, type: 'sine', gain: 0.14 * vol });
+    this.noise({ time, dur: 0.5, gain: 0.08 * vol, filterFrom: 200, filterTo: 60 });
+  }
+
+  splash(time, vol = 1) {
+    this.noise({ time, dur: 0.11, gain: 0.06 * vol, filterFrom: 4800, filterTo: 1200, highpass: true, echo: true });
+    this.bubble(time + 0.02, vol * 0.7, 420);
+  }
+
+  windChime(freqs, time, step = 0.1, vol = 1) {
+    for (let i = 0; i < freqs.length; i++) {
+      const freq = freqs[i];
+      const t = time + i * step;
+      this.tone({ time: t, freq, dur: 0.5, type: 'triangle', gain: 0.045 * vol, filter: 6000, echo: true });
+      this.tone({ time: t, freq: freq * 2.01, dur: 0.4, type: 'sine', gain: 0.018 * vol, echo: true });
+    }
+  }
+
+  heartbeat(time, vol = 1) {
+    this.tone({ time, freq: 58, slideTo: 42, dur: 0.16, type: 'sine', gain: 0.12 * vol });
+    this.tone({ time: time + 0.19, freq: 52, slideTo: 38, dur: 0.14, type: 'sine', gain: 0.08 * vol });
+  }
+
+  caveEcho(freqs, time, step = 0.08, vol = 1) {
+    this.windChime(freqs, time, step, vol * 0.8);
+    this.tone({ time: time + 0.18, freq: freqs[freqs.length - 1] * 0.5, dur: 0.5, type: 'sine', gain: 0.03 * vol, echo: true });
+  }
+
+  uiDrop(time, vol = 1) {
+    this.bubble(time, vol * 0.8, 720);
+    this.tone({ time: time + 0.05, freq: 520, slideTo: 360, dur: 0.12, type: 'sine', gain: 0.02 * vol, echo: true });
+  }
+
+
+  /* ---------------------------------------------------------------- */
   /* SFX                                                             */
   /* ---------------------------------------------------------------- */
 
@@ -412,109 +597,130 @@ export class AudioEngine {
     this.lastSfx.set(name, now);
     const t = now + 0.001;
     const vol = opts.volume === undefined ? 1 : opts.volume;
+    const duck = DUCK_PRESETS[name];
+    if (duck) this.duckBackground(duck.depth, duck.dur);
     try {
       switch (name) {
         case 'laser':
-          this.tone({ time: t, freq: 1550, slideTo: 680, dur: 0.055, type: 'square', gain: 0.05 * vol, bus: 'sfx' });
+          this.woodClick(t, vol);
+          this.bubble(t + 0.012, vol * 0.7, 760);
           break;
         case 'beam':
-          this.tone({ time: t, freq: 260, slideTo: 1500, dur: 0.2, type: 'sawtooth', gain: 0.06 * vol, bus: 'sfx', filter: 2600 });
+          this.noise({ time: t, dur: 0.3, gain: 0.07 * vol, filterFrom: 600, filterTo: 3000, highpass: true, echo: true });
+          this.windChime([1568, 2093], t + 0.12, 0.05, vol * 0.7);
           break;
         case 'enemyShot':
-          this.tone({ time: t, freq: 430, slideTo: 210, dur: 0.09, type: 'square', gain: 0.04 * vol, bus: 'sfx' });
+          this.iceCrack(t, vol, true);
           break;
         case 'explosion':
-          this.noise({ time: t, dur: 0.3, gain: 0.22 * vol, bus: 'sfx', filterFrom: 2600, filterTo: 120 });
-          this.tone({ time: t, freq: 130, slideTo: 38, dur: 0.22, type: 'sine', gain: 0.16 * vol, bus: 'sfx' });
+          this.fireHiss(t, vol);
+          this.stoneCrumb(t + 0.02, vol);
+          break;
+        case 'bigExplosion':
+          this.thunder(t, vol);
+          this.quake(t, vol);
+          this.stoneCrumb(t + 0.05, vol * 0.8);
           break;
         case 'playerDeath':
-          this.noise({ time: t, dur: 0.6, gain: 0.3 * vol, bus: 'sfx', filterFrom: 3400, filterTo: 80 });
-          this.tone({ time: t, freq: 420, slideTo: 45, dur: 0.7, type: 'sawtooth', gain: 0.15 * vol, bus: 'sfx' });
+          this.iceCrack(t, vol * 1.2);
+          this.heartbeat(t + 0.1, vol);
+          this.thunder(t + 0.05, vol * 0.7);
           break;
         case 'dock':
-          this.chime([660, 990], t, 0.15, vol);
+          this.bubble(t, vol, 520);
+          this.caveEcho([784, 1046], t + 0.06, 0.07, vol);
           break;
         case 'moduleLost':
-          this.noise({ time: t, dur: 0.2, gain: 0.16 * vol, bus: 'sfx', filterFrom: 1800, filterTo: 200 });
-          this.tone({ time: t, freq: 500, slideTo: 90, dur: 0.28, type: 'sawtooth', gain: 0.08 * vol, bus: 'sfx' });
+          this.iceCrack(t, vol);
+          this.heartbeat(t + 0.08, vol * 0.8);
           break;
         case 'formation':
-          this.tone({ time: t, freq: 180, slideTo: 900, dur: 0.26, type: 'sawtooth', gain: 0.07 * vol, bus: 'sfx', filter: 2200 });
-          this.noise({ time: t, dur: 0.22, gain: 0.06 * vol, bus: 'sfx', filterFrom: 700, filterTo: 4000, highpass: true });
+          this.noise({ time: t, dur: 0.26, gain: 0.05 * vol, filterFrom: 500, filterTo: 2400, highpass: true, echo: true });
+          this.bubble(t + 0.05, vol * 0.6, 480);
           break;
         case 'rejoin':
-          this.tone({ time: t, freq: 880, slideTo: 520, dur: 0.12, type: 'triangle', gain: 0.07 * vol, bus: 'sfx' });
+          this.bubble(t, vol * 0.7, 640);
           break;
         case 'nova':
-          this.noise({ time: t, dur: 0.9, gain: 0.32 * vol, bus: 'sfx', filterFrom: 4200, filterTo: 60 });
-          this.tone({ time: t, freq: 90, slideTo: 620, dur: 0.5, type: 'sawtooth', gain: 0.16 * vol, bus: 'sfx', filter: 1400 });
-          this.tone({ time: t + 0.06, freq: 60, slideTo: 30, dur: 0.7, type: 'sine', gain: 0.2 * vol, bus: 'sfx' });
+          this.thunder(t, vol * 1.2);
+          this.quake(t, vol);
+          this.bubble(t + 0.1, vol, 380);
           break;
         case 'phoenix':
-          this.tone({ time: t, freq: 70, slideTo: 340, dur: 0.9, type: 'sawtooth', gain: 0.16 * vol, bus: 'sfx', filter: 1600 });
-          this.noise({ time: t, dur: 1.1, gain: 0.14 * vol, bus: 'sfx', filterFrom: 500, filterTo: 3400, highpass: true });
-          this.chime([523, 659, 784, 1046], t + 0.1, 0.5, vol * 0.8);
+          this.noise({ time: t, dur: 0.9, gain: 0.1 * vol, filterFrom: 900, filterTo: 3200, highpass: true, echo: true });
+          this.windChime([523, 659, 784, 1046], t + 0.08, 0.08, vol * 0.9);
+          this.fireHiss(t + 0.2, vol * 0.6);
           break;
         case 'pickup':
-          this.chime([1320], t, 0.07, vol * 0.7);
+          this.windChime([1568], t, 0, vol * 0.5);
           break;
         case 'powerup':
-          this.chime([660, 880, 1320], t, 0.12, vol * 0.8);
+          this.bubble(t, vol, 640);
+          this.bubble(t + 0.06, vol * 0.7, 880);
+          this.caveEcho([784, 988], t + 0.08, 0.08, vol * 0.7);
           break;
         case 'relic':
-          this.chime([784, 988, 1175, 1568], t, 0.2, vol);
+          this.windChime([784, 988, 1175, 1568], t, 0.09, vol);
           break;
         case 'extraLife':
-          this.chime([523, 659, 784, 1046, 1318], t, 0.16, vol);
+          this.windChime([523, 659, 784, 1046, 1318], t, 0.08, vol);
           break;
         case 'moduleRelease':
-          this.chime([440, 554, 659], t, 0.16, vol * 0.8);
+          this.bubble(t, vol, 560);
+          this.windChime([659, 880], t + 0.07, 0.08, vol * 0.7);
           break;
         case 'podHit':
-          this.tone({ time: t, freq: 220, slideTo: 160, dur: 0.05, type: 'square', gain: 0.05 * vol, bus: 'sfx' });
+          this.windChime([1318], t, 0, vol * 0.45);
+          this.splash(t + 0.01, vol * 0.5);
           break;
         case 'podBreak':
-          this.noise({ time: t, dur: 0.2, gain: 0.14 * vol, bus: 'sfx', filterFrom: 1600, filterTo: 160 });
+          this.stoneCrumb(t, vol * 0.8);
+          this.splash(t + 0.02, vol * 0.6);
           break;
         case 'warning':
-          this.tone({ time: t, freq: 880, dur: 0.14, type: 'square', gain: 0.06 * vol, bus: 'sfx' });
-          this.tone({ time: t + 0.18, freq: 660, dur: 0.14, type: 'square', gain: 0.06 * vol, bus: 'sfx' });
+          this.heartbeat(t + 0.05, vol);
+          this.noise({ time: t, dur: 0.5, gain: 0.05 * vol, filterFrom: 320, filterTo: 90 });
           break;
         case 'bossHit':
-          this.noise({ time: t, dur: 0.18, gain: 0.16 * vol, bus: 'sfx', filterFrom: 2200, filterTo: 140 });
+          this.windChime([1046, 1318], t, 0.05, vol * 0.6);
+          this.splash(t + 0.02, vol * 0.6);
           break;
         case 'summon':
-          this.tone({ time: t, freq: 120, slideTo: 480, dur: 0.3, type: 'sawtooth', gain: 0.06 * vol, bus: 'sfx' });
+          this.noise({ time: t, dur: 0.6, gain: 0.06 * vol, filterFrom: 200, filterTo: 700 });
+          this.bubble(t + 0.1, vol * 0.6, 420);
           break;
         case 'stageClear':
-          this.chime([523, 659, 784, 1046, 1318, 1568], t, 0.22, vol);
+          this.windChime([523, 659, 784, 1046, 1318, 1568], t, 0.11, vol);
           break;
         case 'waveClear':
-          this.chime([659, 988], t, 0.18, vol * 0.7);
+          this.windChime([659, 988], t, 0.1, vol * 0.6);
           break;
         case 'gameOver':
-          this.chime([392, 349, 311, 262], t, 0.32, vol * 0.8);
+          this.thunder(t, vol * 0.8);
+          this.windChime([392, 349, 311, 262], t + 0.2, 0.22, vol * 0.6);
           break;
         case 'continue':
-          this.chime([440, 660, 880], t, 0.22, vol);
+          this.windChime([440, 660, 880], t, 0.1, vol * 0.8);
           break;
         case 'select':
-          this.tone({ time: t, freq: 900, dur: 0.05, type: 'square', gain: 0.04 * vol, bus: 'sfx' });
+          this.uiDrop(t, vol);
           break;
         case 'move':
-          this.tone({ time: t, freq: 640, dur: 0.035, type: 'square', gain: 0.03 * vol, bus: 'sfx' });
+          this.uiDrop(t, vol * 0.5);
           break;
         case 'back':
-          this.tone({ time: t, freq: 420, slideTo: 260, dur: 0.09, type: 'square', gain: 0.04 * vol, bus: 'sfx' });
+          this.uiDrop(t, vol * 0.7);
+          this.tone({ time: t + 0.04, freq: 340, slideTo: 220, dur: 0.1, type: 'sine', gain: 0.02 * vol, echo: true });
           break;
         case 'pause':
-          this.chime([740, 560], t, 0.1, vol * 0.7);
+          this.uiDrop(t, vol * 0.6);
           break;
         case 'ready':
-          this.chime([880, 1108, 1320], t, 0.18, vol * 0.8);
+          this.bubble(t, vol, 660);
+          this.windChime([880, 1108, 1320], t + 0.06, 0.08, vol * 0.7);
           break;
         case 'field':
-          this.tone({ time: t, freq: 1400, slideTo: 900, dur: 0.03, type: 'sine', gain: 0.02 * vol, bus: 'sfx' });
+          this.tone({ time: t, freq: 1400, slideTo: 900, dur: 0.03, type: 'sine', gain: 0.02 * vol });
           break;
         default:
           break;
@@ -523,24 +729,14 @@ export class AudioEngine {
   }
 
   chime(freqs, time, stepDur, vol = 1) {
-    freqs.forEach((freq, i) => {
-      this.tone({
-        time: time + i * stepDur,
-        freq,
-        dur: 0.22,
-        type: 'triangle',
-        gain: 0.08 * vol,
-        bus: 'sfx',
-        filter: 5000,
-      });
-    });
+    this.windChime(freqs, time, stepDur, vol);
   }
 
   /**
    * Single oscillator voice.
    * { time, freq, dur, type, gain, bus, slideTo, filter, attack, echo }
    */
-  tone({ time, freq, dur = 0.1, type = 'square', gain = 0.08, bus = 'sfx', slideTo = null, filter = null, attack = 0.004 }) {
+  tone({ time, freq, dur = 0.1, type = 'square', gain = 0.08, bus = 'sfx', slideTo = null, filter = null, attack = 0.004, echo = false }) {
     const ctx = this.ctx;
     if (!ctx) return;
     const osc = ctx.createOscillator();
@@ -561,11 +757,12 @@ export class AudioEngine {
     }
     node.connect(g);
     g.connect(bus === 'music' ? this.musicGain : this.sfxGain);
+    if (echo && this.sfxEcho) g.connect(this.sfxEcho);
     osc.start(time);
     osc.stop(time + dur + 0.02);
   }
 
-  noise({ time, dur = 0.2, gain = 0.15, bus = 'sfx', filterFrom = 3000, filterTo = 200, highpass = false }) {
+  noise({ time, dur = 0.2, gain = 0.15, bus = 'sfx', filterFrom = 3000, filterTo = 200, highpass = false, echo = false }) {
     const ctx = this.ctx;
     if (!ctx || !this.noiseBuffer) return;
     const src = ctx.createBufferSource();
@@ -582,6 +779,7 @@ export class AudioEngine {
     src.connect(filter);
     filter.connect(g);
     g.connect(bus === 'music' ? this.musicGain : this.sfxGain);
+    if (echo && this.sfxEcho) g.connect(this.sfxEcho);
     src.start(time);
     src.stop(time + dur + 0.02);
   }

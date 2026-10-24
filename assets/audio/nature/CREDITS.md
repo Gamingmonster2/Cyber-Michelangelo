@@ -1,9 +1,11 @@
-# Nature ambience — provenance & attribution
+# NATURE soundtrack — provenance & attribution
 
-The soundtrack of Cyber Michelangelo is **not music**: it is a layered bed of
-real nature field recordings (forest, rivers, wind, rain, thunder, cave water)
-that follows each scene. All files are **public domain** or **CC0 1.0** and are
-used here as-is (renamed only; looping/crossfading happens at runtime).
+These recordings power the **optional NATURE soundtrack style** of Cyber
+Michelangelo (the default soundtrack is the synthesised *space-nature* ambience
+in `src/core/space_ambience.js`, which needs no files). The NATURE style maps
+each scene to a layered bed of real nature field recordings (forest, river,
+wind, rain, thunder, cave water). All files are **public domain** or **CC0 1.0**
+and are used here as-is (renamed only; looping/crossfading happens at runtime).
 
 Attribution is not legally required for PD/CC0, but we credit every recordist
 here and in the in-game Credits screen because their work makes this possible.

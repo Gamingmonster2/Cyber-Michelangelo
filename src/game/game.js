@@ -38,7 +38,7 @@ export const PAUSE_ITEMS = ['RESUME', 'RESTART', 'QUIT TO TITLE'];
 export const OPTION_ITEMS = [
   { key: 'music', label: 'AMBIENCE', type: 'volume' },
   { key: 'sfx', label: 'SFX', type: 'volume' },
-  { key: 'musicStyle', label: 'SOUNDTRACK', type: 'choice', choices: ['nature', 'chiptune'] },
+  { key: 'musicStyle', label: 'SOUNDTRACK', type: 'choice', choices: ['space', 'nature', 'chiptune'] },
   { key: 'autoFire', label: 'AUTO FIRE', type: 'bool' },
   { key: 'shake', label: 'SCREEN SHAKE', type: 'bool' },
   { key: 'scanlines', label: 'SCANLINES', type: 'bool' },
@@ -637,6 +637,7 @@ export class Game {
           if (res.died) {
             this.addScore(this.boss.score, { ignoreCombo: true });
             this.addPopup(`COLOSSUS DOWN +${this.boss.score}`, this.boss.x, this.boss.y, 'gold', 2.4);
+            this.hooks.sfx('bigExplosion');
           }
           if (b.pierce && b.pierce > 0) b.pierce -= 1;
           else consumed = true;

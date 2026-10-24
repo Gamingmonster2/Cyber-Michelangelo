@@ -55,7 +55,8 @@ if (params.has('fps')) settings.showFps = true;
 if (params.has('noscanlines')) settings.scanlines = false;
 if (params.get('style') === '3d') settings.renderStyle = '3d';
 else if (params.get('style') === 'hd') settings.renderStyle = 'hd';
-if (params.get('audio') === 'chiptune') settings.musicStyle = 'chiptune';
+const audioStyleParam = params.get('audio');
+if (['space', 'nature', 'chiptune'].includes(audioStyleParam)) settings.musicStyle = audioStyleParam;
 audio.setMusicStyle(settings.musicStyle);
 
 const seedParam = Number(params.get('seed'));
@@ -153,8 +154,8 @@ if (requestedScene && requestedScene !== 'title') {
   game.startRun();
 }
 
-// Headless audio verification hook: unlocks WebAudio, lets the ambience engine
-// load the current scene's recordings, then reports its state into the DOM.
+// Headless audio verification hook: unlocks WebAudio, runs the current
+// soundtrack style for a moment, then reports its state into the DOM.
 if (params.has('audio-probe')) {
   setTimeout(async () => {
     const payload = { ok: false };
@@ -162,25 +163,33 @@ if (params.has('audio-probe')) {
       await audio.unlock();
       const forcedTrack = params.get('probe-track');
       if (forcedTrack) audio.music(forcedTrack);
+      audio.setMotion(0.6); // simulate movement so the wind layer responds
+      // Exercise every gameplay SFX once so the probe catches synthesis errors.
+      const SFX_TEST = [
+        'laser', 'beam', 'enemyShot', 'explosion', 'bigExplosion', 'playerDeath',
+        'dock', 'moduleLost', 'formation', 'rejoin', 'nova', 'phoenix', 'pickup',
+        'powerup', 'relic', 'extraLife', 'moduleRelease', 'podHit', 'podBreak',
+        'warning', 'bossHit', 'summon', 'stageClear', 'waveClear', 'gameOver',
+        'continue', 'select', 'move', 'back', 'pause', 'ready', 'field',
+      ];
+      let sfxTested = 0;
+      for (const name of SFX_TEST) {
+        try {
+          audio.sfx(name, { volume: 0.01 });
+          sfxTested += 1;
+        } catch { /* counted below */ }
+      }
       await new Promise((resolve) => setTimeout(resolve, 4500));
-      const bed = audio.ambience && audio.ambience.bed;
-      const layers = bed ? bed.layers.map((layer) => ({
-        url: layer.def.url,
-        loaded: Boolean(layer.buffer),
-        failed: Boolean(layer.failed),
-        procedural: Boolean(layer.proc),
-      })) : [];
-      const loaded = layers.filter((l) => l.loaded).length;
-      payload.ok = Boolean(audio.ctx) && loaded >= 1;
-      payload.ctxState = audio.ctx ? audio.ctx.state : null;
-      payload.style = audio.musicStyle;
-      payload.track = audio.track;
-      payload.theme = audio.themeId;
-      payload.bed = bed ? bed.key : null;
-      payload.layers = layers;
-      payload.loaded = loaded;
-      payload.sampleRate = audio.ctx ? audio.ctx.sampleRate : null;
-      payload.ctxTime = audio.ctx ? Math.round(audio.ctx.currentTime * 100) / 100 : null;
+      const state = audio.getAudioState();
+      const styleOk = state.space
+        ? state.space.active === true
+        : state.layers
+          ? state.layers.some((l) => l.loaded)
+          : true;
+      payload.ok = Boolean(audio.ctx) && audio.ctx.state === 'running' && styleOk;
+      payload.sfxTested = sfxTested;
+      payload.sfxTotal = SFX_TEST.length;
+      Object.assign(payload, state);
     } catch (err) {
       payload.error = String(err && err.stack ? err.stack : err);
     }
@@ -477,6 +486,8 @@ function frame(now) {
   renderer.render(game, { isTouch: input.isTouch }, frozen ? 1 / 60 : dt);
   renderer.present(game);
   drawHdOverlay();
+  const p = game.player;
+  audio.setMotion(p && !p.dead ? Math.min(1, Math.hypot(p.vx || 0, p.vy || 0) / 130) : 0);
   audio.tick();
 
   if (boot && firstFrame) {

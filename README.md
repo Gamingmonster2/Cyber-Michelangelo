@@ -1,26 +1,27 @@
 # Cyber Michelangelo · سايبر مايكل أنجلو
 
-**A digital-Renaissance HD-2D vertical shoot 'em up — inspired by *Terra Cresta* (1985), with an optional real-time 3D mode and a **nature-ambience soundtrack** built from public-domain field recordings. Built with AI assistance, zero runtime dependencies.**
+**A digital-Renaissance HD-2D vertical shoot 'em up — inspired by *Terra Cresta* (1985), with an optional real-time 3D mode and a **“space nature” sound design**: a quiet synthesised rumble/wind bed with rare natural details, and clear nature-flavoured SFX on top. Built with AI assistance, zero runtime dependencies.**
 
-لعبة إطلاق نار عمودية بأسلوب **HD-2D**: فن متجهي عالي الدقة فوق خلفيات نهضوية متحركة، مستوحاة من *Terra Cresta* الكلاسيكية — مع **وضع ثلاثي الأبعاد اختياري** و**خلفية صوتية من أصوات الطبيعة الحقيقية** (غابة، ماء، ريح، مطر، كهوف) من تسجيلات ملك عام/CC0. بُنيت بمساعدة الذكاء الاصطناعي وبدون أي مكتبات وقت التشغيل.
+لعبة إطلاق نار عمودية بأسلوب **HD-2D**: فن متجهي عالي الدقة فوق خلفيات نهضوية متحركة، مستوحاة من *Terra Cresta* الكلاسيكية — مع **وضع ثلاثي الأبعاد اختياري** و**تصميم صوتي «طبيعة فضائية»**: خلفية هادئة من هدير فضائي ورياح متغيرة مع تفاصيل طبيعية متقطعة، ومؤثرات واضحة فوقها. بُنيت بمساعدة الذكاء الاصطناعي وبدون أي مكتبات وقت التشغيل.
 
 ### ▶ Play the live build · جرّبها الآن
 
 **<https://ly.id.ly/Cyber-Michelangelo/>** — deployed straight from this repository (GitHub Pages mirror).
 A Cloudflare Pages deployment with a custom domain is planned next.
 
-### What's new in v1.5 — nature ambience instead of music
+### What's new in v1.6 — “space nature” sound design
 
-- **The soundtrack is no longer music:** each scene now plays a layered bed of **real nature field recordings** — forest birds and wind on the title screen, a stony river in the Marble Gardens, cave water in the Neon Catacombs, high wind and distant storm in the Grid Cathedral, a full **storm (rain + thunder + wind)** for the boss, and soft rain on game over.
-- **Seamless by construction:** every layer loops through a 2.6 s equal-power crossfade and the beds crossfade between scenes; occasional randomized water/bird accents break up any repetition.
-- **All sources are Public Domain / CC0 1.0:** forest, river and rivulet recordings by *nille* and *stephan* (PDSounds.org, via Wikimedia Commons); wind by *Écrivain*, rain + thunder by *WuxiaScrub*, soft rain by *Ylmir* and cavern ambience by *Paul Wortmann* (OpenGameArt). Full provenance: [`assets/audio/nature/CREDITS.md`](assets/audio/nature/CREDITS.md).
-- **Classic chiptune kept as an option:** *Options → SOUNDTRACK* switches between **NATURE** (default) and **CHIPTUNE**; the nature direction was requested after v1.4, so the short-lived CC0 music tracks have been retired.
-- **Never breaks:** if a browser cannot decode OGG, each missing layer is replaced by filtered-noise wind/water/rain synthesis; SFX are unchanged.
+- **Background = two continuous layers + rare details.** Layer 1 is a very quiet low space rumble (deep ocean + high wind, low-passed and reverbed) for width and weight. Layer 2 is a drifting wind that slowly pans right/left and **rises slightly with your movement speed**. Every 8–20 s a random detail appears: distant thunder, a water drop, or an ice crack.
+- **SFX rebuilt from natural materials and mixed above the bed:** player fire = short wooden click + water bubble; enemy fire = darker ice crack; hits = small wind chime + splash; small explosions = soft fire + crumbling stone; big explosion/boss death = distant thunder + light quake + ocean rumble; player damage = cracking ice + low heartbeat; power-ups/shield = water bubbles + cave echo; score/combo = short natural chimes; UI = water drop + light echo.
+- **Automatic ducking:** the background dips on every laser, explosion, hit and player-damage sound, then smoothly returns — the bed is always quiet, the SFX always cut through.
+- **Processing built in:** the space bed runs through low-pass/high-pass filters, a generated convolution reverb and slow LFOs; SFX get filters, pitch glides and a short echo so nothing sounds like raw nature.
+- **Three soundtrack options:** *Options → SOUNDTRACK* = **SPACE NATURE** (default) / **NATURE** (the v1.5 recorded field beds) / **CHIPTUNE**. AMBIENCE slider controls the bed; `?audio=space|nature|chiptune` forces a style.
+- Previous v1.5 nature recordings and credits remain available under the NATURE option.
 
 <details>
-<summary>v1.4 — CC0 music tracks (retired in v1.5)</summary>
+<summary>v1.5 — nature field-recording beds</summary>
 
-- *Options → MUSIC STYLE* offered four sampled CC0 music tracks; replaced by the nature ambience in v1.5 at the user's request.
+- The soundtrack became layered public-domain/CC0 field recordings per scene; still available via *Options → SOUNDTRACK → NATURE*, with full provenance in [`assets/audio/nature/CREDITS.md`](assets/audio/nature/CREDITS.md).
 
 </details>
 
@@ -112,7 +113,7 @@ It prints the deployment URL (`https://<project>.pages.dev`). Add the custom dom
 | Mute | `M` | — | — |
 | Fullscreen | `F` | — | — |
 
-Menus: `↑ ↓` + `Enter`; `Esc` = back. Auto-fire can also be enabled for keyboard in **Options**. The renderer style (**HD-2D / 3D**) is picked from the title menu (`RENDER:` row) or **Options → RENDERER**, and the soundtrack (**NATURE / CHIPTUNE**) from **Options → SOUNDTRACK**; the **AMBIENCE** slider sets the nature-layer volume — all remembered between sessions.
+Menus: `↑ ↓` + `Enter`; `Esc` = back. Auto-fire can also be enabled for keyboard in **Options**. The renderer style (**HD-2D / 3D**) is picked from the title menu (`RENDER:` row) or **Options → RENDERER**, and the soundtrack (**SPACE NATURE / NATURE / CHIPTUNE**) from **Options → SOUNDTRACK**; the **AMBIENCE** slider sets the bed volume — all remembered between sessions.
 
 ---
 
@@ -204,8 +205,9 @@ src/
     math.js           deterministic RNG, easing, geometry helpers
     storage.js        safe localStorage wrapper + high scores/settings
     input.js          keyboard + gamepad + relative-drag touch
-    audio.js          procedural SFX + optional chiptune; nature ambience lives in core/ambience.js
-  core/ambience.js    layered nature field-recording engine (loops, crossfades, accents, fallback)
+    audio.js          nature-flavoured SFX synthesis, soundtrack switching, auto-ducking
+  core/space_ambience.js  default “space nature” bed: rumble + drifting wind + random details
+  core/ambience.js    optional recorded-nature beds (loops, crossfades, accents, fallback)
   game/
     config.js         all tunables: player, modules, enemies, boss, scoring, difficulty
     formations.js     pure formation choreography
@@ -235,11 +237,11 @@ src/
     renderer3d.js     optional three.js WebGL renderer (lazy-loaded, own canvas)
   ui/touch.js         touch-control layout shared by input & renderer
 assets/
-  audio/nature/       public-domain/CC0 field recordings (forest, water, wind, rain, cave) + CREDITS.md
+  audio/nature/       nature field recordings (for the optional NATURE soundtrack) + CREDITS.md
 vendor/
   three/              three.js r160 ES module + MIT license (only loaded for 3D)
 tests/
-  smoke.mjs           46 pure-logic tests (Node, no DOM)
+  smoke.mjs           48 pure-logic tests (Node, no DOM)
   syntax.mjs          parse-check every source module
 tools/capture.ps1     headless-Edge screenshot helper used for visual verification
 tools/deploy-cloudflare.mjs  zero-dependency Cloudflare Pages direct upload
@@ -255,7 +257,7 @@ Simulation is a **DOM-free state machine** (`Game`) updated at a fixed 1/60 s st
 ## Verification · التحقق
 
 ```bash
-npm test                    # 46 logic tests, all green
+npm test                    # 48 logic tests, all green
 node tests/syntax.mjs       # every module parses
 ```
 
@@ -272,7 +274,7 @@ node server.mjs
 powershell -File tools/capture.ps1 -Shots "title|?noboot=1;game|?scene=game&sim=26&freeze=1&noboot=1"
 ```
 
-Debug URL hooks: `?scene=game|boss|phoenix|formation|catacombs|cathedral|gameover|howto|credits|options`, `&sim=SECONDS`, `&freeze=1`, `&touch=1`, `&seed=N`, `&mute=1`, `&fps=1`, `&noscanlines=1`, `&style=hd|3d` to force a renderer, and `&audio=chiptune` to force the legacy soundtrack.
+Debug URL hooks: `?scene=game|boss|phoenix|formation|catacombs|cathedral|gameover|howto|credits|options`, `&sim=SECONDS`, `&freeze=1`, `&touch=1`, `&seed=N`, `&mute=1`, `&fps=1`, `&noscanlines=1`, `&style=hd|3d` to force a renderer, and `&audio=space|nature|chiptune` to force a soundtrack style. `&audio-probe=1` writes a headless audio state report (including a 32-SFX smoke test).
 
 ---
 
@@ -283,7 +285,7 @@ Debug URL hooks: `?scene=game|boss|phoenix|formation|catacombs|cathedral|gameove
 - **Cyber Michelangelo** is an original, non-commercial homage. **No original game code, art, names or audio assets were used** — every pixel and every sound is generated procedurally in this repository.
 - Built with **AI assistance** (DeepSeek agent) for design, code, art and audio.
 - **three.js r160** (MIT License, © 2010-2023 three.js authors) is vendored in `vendor/three` for the optional 3D mode; its license file is kept alongside the module. All 3D models, environments and materials are generated procedurally by this project's code — no third-party art assets are used.
-- **Nature-ambience soundtrack:** every recording is **Public Domain** or **CC0 1.0** and is credited in-game and in [`assets/audio/nature/CREDITS.md`](assets/audio/nature/CREDITS.md):
+- **Sound design:** the default **SPACE NATURE** ambience, its LFOs/reverb and all 32 SFX are synthesised procedurally by this project (`src/core/space_ambience.js`, `src/core/audio.js`) — no external audio files for the default experience. The optional **NATURE** soundtrack uses **Public Domain / CC0 1.0** recordings, credited in-game and in [`assets/audio/nature/CREDITS.md`](assets/audio/nature/CREDITS.md):
   - *Forest ambience* — **nille** (PDSounds.org, via [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:20090610_0_ambience.ogg)) — Public Domain
   - *Shallow small river with stony riverbed* — **stephan** (PDSounds.org, via [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Shallow_small_river_with_stony_riverbed.ogg)) — Public Domain
   - *Welling rivulet in the woods* — **stephan** (PDSounds.org, via [Wikimedia Commons](https://commons.wikimedia.org/wiki/File:Welling_rivulet_in_the_woods.ogg)) — Public Domain
@@ -291,7 +293,6 @@ Debug URL hooks: `?scene=game|boss|phoenix|formation|catacombs|cathedral|gameove
   - *Rain + Long Thunder* — **WuxiaScrub**, [OpenGameArt](https://opengameart.org/content/rain-long-thunder) — CC0 1.0
   - *Soft rain* — **Ylmir**, [Rain (loopable)](https://opengameart.org/content/rain-loopable) — CC0 1.0
   - *Dark cavern ambience* — **Paul Wortmann**, [OpenGameArt](https://opengameart.org/content/dark-cavern-ambient) — CC0 1.0
-  - These recordings replace the short-lived v1.4 CC0 music option; game SFX and the optional chiptune remain procedural.
 - The `research/` folder preserves an independent Arabic research report on the *Cresta* series that informed the design; it is reference material and is not required to play.
 
 **License:** MIT.
@@ -302,4 +303,4 @@ Debug URL hooks: `?scene=game|boss|phoenix|formation|catacombs|cathedral|gameove
 
 **سايبر مايكل أنجلو** لعبة شوتر عمودية بأسلوب **HD-2D** — فن متجهي عالي الدقة فوق خلفيات نهضوية متحركة — مستوحاة من *Terra Cresta* (1985):
 سفينة ألفا الأساسية، وأربع وحدات قتالية (بيتا، غاما، دلتا، إبسيلون) تُحرَّر بإسقاط الصوامع الأرضية وتلتحم بالسفينة فتمنحها قوة نارية إضافية وتمتص الضربات بدلاً منك.
-اضغط زر التحويل `X` لتفكيك الوحدات في تشكيلات قتالية مؤقتة (الهلال، التمدد، الحراسة) — القطع منيعة أثناء الانفصال لكن جسم السفينة مكشوف؛ وإذا جمعت القطع الأربع فاضغط `X` لتتحول إلى **طائر العنقاء الناري** الذي لا يُقهر لدقائق. أضف إلى ذلك قنبلة **NOVA** الماسحة للشاشة، ومضاعفات النقاط، وثلاث بيئات متجددة بجرافيك HD، وزعماء مرحلين، ومؤثرات صوتية مولّدة رقمياً — مع **خلفية صوتية من تسجيلات الطبيعة الحقيقية** (غابة، ماء، ريح، مطر، رعد، كهوف) من مصادر ملك عام وCC0، وخيار تشيبتيون كلاسيكي. **وضع 3D اختياري** (three.js مضمّن محلياً) يُختار من شاشة البداية أو الإعدادات، ويستخدم نفس منطق اللعبة تماماً. تعمل اللعبة بالكامل بدون إنترنت، ومختبَرة بـ 46 اختباراً منطقياً وفحوصات بصرية آلية.
+اضغط زر التحويل `X` لتفكيك الوحدات في تشكيلات قتالية مؤقتة (الهلال، التمدد، الحراسة) — القطع منيعة أثناء الانفصال لكن جسم السفينة مكشوف؛ وإذا جمعت القطع الأربع فاضغط `X` لتتحول إلى **طائر العنقاء الناري** الذي لا يُقهر لدقائق. أضف إلى ذلك قنبلة **NOVA** الماسحة للشاشة، ومضاعفات النقاط، وثلاث بيئات متجددة بجرافيك HD، وزعماء مرحلين — مع **تصميم صوتي «طبيعة فضائية»**: طبقتا هدير فضائي منخفض ورياح متغيرة تتحرك مع سرعتك، وتفاصيل طبيعية متقطعة (رعد بعيد، قطرة ماء، طقطقة جليد)، ومؤثرات لعب واضحة مبنية من طبقات خشب/ماء/جليد/حجر/رعد مع تخفيض تلقائي للخلفية. تتوفر أيضاً خيارات **NATURE** (تسجيلات طبيعية ملك عام/CC0 اختيارية) و**CHIPTUNE** الكلاسيكي. **وضع 3D اختياري** (three.js مضمّن محلياً) يُختار من شاشة البداية أو الإعدادات، ويستخدم نفس منطق اللعبة تماماً. تعمل اللعبة بالكامل بدون إنترنت، ومختبَرة بـ 48 اختباراً منطقياً وفحوصات بصرية آلية.
