@@ -132,8 +132,8 @@ export function drawHowto(ctx, game) {
       y += 13;
     }
     label(ctx, 'TOUCH', 120, 178, { align: 'center', size: 5.4, color: P.cyan, tracking: 2.6 });
-    label(ctx, 'DRAG ANYWHERE TO FLY · AUTO-FIRE', 120, 190, { align: 'center', size: 4.8, color: P.marbleMid, tracking: 0.4 });
-    label(ctx, 'FORM / NOVA BUTTONS ON SCREEN', 120, 199, { align: 'center', size: 4.8, color: P.marbleMid, tracking: 0.4 });
+    label(ctx, 'DRAG LEFT SIDE TO FLY · HOLD FIRE', 120, 190, { align: 'center', size: 4.8, color: P.marbleMid, tracking: 0.4 });
+    label(ctx, 'FORM / NOVA / FIRE BUTTONS · TAP MENUS', 120, 199, { align: 'center', size: 4.6, color: P.marbleMid, tracking: 0.3 });
     label(ctx, 'THE GOAL', 120, 220, { align: 'center', size: 5.4, color: P.cyan, tracking: 2.6 });
     const goal = [
       'SHOOT THE 4 GROUND PODS TO RELEASE',

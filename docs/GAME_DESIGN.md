@@ -7,7 +7,7 @@
 **Simulation:** fixed 1/60 s timestep, DOM-free `Game` state machine
 **Reference:** *Terra Cresta* (Nichibutsu, 1985) — modular docking, formation split, flaming Phoenix
 **Art direction:** “digital Renaissance in deep space” — HD-2D vector ships, marble, gold leaf and neon over prerendered baroque environments; optional low-poly 3D mode with the same art direction
-**Version:** 1.6.0
+**Version:** 1.7.0
 
 ---
 
@@ -43,15 +43,15 @@ The renderer keeps gameplay in a 240×420 logical coordinate space, but the offs
 
 | Action | Keyboard | Gamepad | Touch |
 | --- | --- | --- | --- |
-| Move | Arrows / WASD | Left stick / D-pad | Relative drag anywhere on the pad |
-| Fire | `Z` / `Space` / `J` (hold) | A | Auto-fire while dragging |
+| Move | Arrows / WASD | Left stick / D-pad | Relative drag on the left side / upper area (live stick knob) |
+| Fire | `Z` / `Space` / `J` (hold) | A | Hold the dedicated **FIRE** button (bottom-right) |
 | Transform | `X` / `K` / `Shift` | X | `FORM` button |
 | Nova | `B` / `L` | B | `NOVA` button |
 | Pause | `Esc` / `P` | Start | ⏸ button |
 | Mute | `M` | — | — |
 | Fullscreen | `F` | — | — |
 
-Menus: `↑↓` to navigate, `Enter` to confirm, `Esc` to go back. The input layer exposes analog axes plus one-frame edges for every action; the Game receives a single snapshot per frame.
+Menus: keyboard `↑↓` + `Enter`; on touch, **tap** = confirm and **swipe up/down** = navigate. The input layer is multi-pointer: one thumb can steer while the other holds FIRE; it exposes analog axes plus one-frame edges for every action, and the Game receives a single snapshot per frame. Touch steering uses a faster approach rate (`touchAccel`) and a slightly higher top speed so the craft tracks the thumb with minimal lag.
 
 ---
 
@@ -59,8 +59,8 @@ Menus: `↑↓` to navigate, `Enter` to confirm, `Esc` to go back. The input lay
 
 | Stat | Value |
 | --- | --- |
-| Speed | 122 px/s (Phoenix: ×1.12) |
-| Acceleration | exponential approach, 18/s (weighty arcade feel) |
+| Speed | 122 px/s (Phoenix: ×1.12; touch steering: ×1.12) |
+| Acceleration | exponential approach, 18/s keyboard (weighty arcade feel) · 34/s touch (snappy thumb tracking) |
 | Core hitbox | circle r = 4.5 px |
 | Fire interval | 0.112 s (twin bolts, 1 damage, 270 px/s) |
 | Start lives | 3 (max display 5) |
@@ -314,15 +314,23 @@ main.js ──▶ Renderer (device-res buffer → present, VFX, HD-2D art, menus
 | Layer | Command | Result |
 | --- | --- | --- |
 | Module parsing | `node tests/syntax.mjs` | all modules parse |
-| Game logic (48 tests) | `node tests/smoke.mjs` | green: movement, docking, shield buffer, formation, Phoenix, pods, scoring, boss phases, stage flow, game over/continue, title/options renderer + soundtrack choices, space-nature layer/detail/duck map, nature bed/theme coverage, 3-minute autopilot stability |
-| Browser integration (16 checks) | `/?selftest=1` | green: sprite build, title/gameplay/boss/formation/Phoenix/menu renders, HUD pixels, three themes |
-| Visual QA | `tools/capture.ps1` + headless Edge | 11 scene screenshots reviewed |
+| Game logic (53 tests) | `node tests/smoke.mjs` | green: movement, docking, shield buffer, formation, Phoenix, pods, scoring, boss phases, stage flow, game over/continue, title/options renderer + soundtrack choices, space-nature layer/detail/duck map, nature bed/theme coverage, 3-minute autopilot stability, touch FIRE layout/hit-zones/steering response |
+| Browser integration (19 checks) | `/?selftest=1` | green: sprite build, title/gameplay/boss/formation/Phoenix/menu renders, HUD pixels, three themes, 3D renderer probe, nature assets |
+| Visual QA | `tools/capture.ps1` + headless Edge | 11 scene screenshots reviewed (desktop + mobile touch layout) |
 
 ---
 
 ## 15. Changelog & roadmap
 
-### v1.6.0 — “space nature” sound design (current)
+### v1.7.0 — mobile controls, audio unlock & sharpness (current)
+- New two-thumb touch layout: left relative-drag movement stick with a live knob, a dedicated **FIRE** hold button bottom-right, and separate FORM/NOVA/pause buttons; steering and shooting are now independent multi-pointer actions.
+- Touch steering retuned: acceleration 34/s (vs 18/s keyboard), top speed ×1.12, larger drag range (20 logical px) so the ship follows the thumb instead of trailing it. Dragging no longer auto-fires.
+- Mobile menus: tap = confirm, swipe up/down = navigate (phones have no arrow keys).
+- Audio unlock hardened: AudioContext resumes inside the first pointer/touch/click/key gesture and is retried on later frames if Android/iOS keeps it suspended; failed initialisation can retry on the next tap.
+- Mobile sharpness: DPR cap raised 2× → 3×, HD buffer up to 4×, canvas switched from `image-rendering: pixelated` to smooth upscaling. `maximum-scale=1` added to the viewport.
+- +5 logic tests (53 total); self-test remains 19 green checks; visual QA now includes the mobile touch layout.
+
+### v1.6.0 — “space nature” sound design
 - New default soundtrack `src/core/space_ambience.js`: a very quiet low space rumble (deep ocean + high wind, low-pass + convolution reverb) and a drifting wind layer that pans slowly and rises slightly with player speed; sparse random details (distant thunder / water drop / ice crack) every 8–20 s.
 - All 32 gameplay SFX rebuilt from synthesised natural materials (wood, water, ice, stone, thunder) with filters, pitch glides and a short echo; background is automatically ducked on lasers/explosions/hits/player damage and restored (`DUCK_PRESETS`).
 - *Options → SOUNDTRACK* offers **SPACE NATURE** (default) / **NATURE** (v1.5 field-recording beds) / **CHIPTUNE**; AMBIENCE slider and `?audio=` debug hook. Boss mood increases detail density and rumble weight.

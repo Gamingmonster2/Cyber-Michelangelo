@@ -101,7 +101,7 @@ export class AudioEngine {
   async unlock() {
     if (this.ctx) {
       if (this.ctx.state === 'suspended') {
-        try { await this.ctx.resume(); } catch { /* ignore */ }
+        this.resume();
       }
       return true;
     }
@@ -112,6 +112,15 @@ export class AudioEngine {
       if (!AC) return false;
       const ctx = new AC();
       this.ctx = ctx;
+
+      // Android Chrome / iOS can hand back a suspended context even inside a
+      // tap handler. Resume it immediately while we still hold user activation.
+      try {
+        if (ctx.state === 'suspended') {
+          const p = ctx.resume();
+          if (p && typeof p.catch === 'function') p.catch(() => {});
+        }
+      } catch { /* ignore */ }
 
       const master = ctx.createGain();
       master.gain.value = this.muted ? 0 : 1;
@@ -161,6 +170,8 @@ export class AudioEngine {
       this.noiseBuffer = this.buildNoise(ctx);
       this.ready = true;
       this.nextStepTime = ctx.currentTime + 0.12;
+      // Best-effort resume after the graph is built (needs no await).
+      this.resume();
       if (this.pendingTrack) {
         // The track may already equal this.track (it was set before the
         // AudioContext existed); reset it so music() actually starts playback.
@@ -174,8 +185,18 @@ export class AudioEngine {
       return true;
     } catch (err) {
       console.warn('[audio] failed to initialise WebAudio:', err);
+      this.unlockTried = false; // allow a later tap to retry
       return false;
     }
+  }
+
+  /** Resume a suspended AudioContext (safe to call every frame). */
+  resume() {
+    if (!this.ctx || this.ctx.state === 'running') return;
+    try {
+      const p = this.ctx.resume();
+      if (p && typeof p.catch === 'function') p.catch(() => {});
+    } catch { /* ignore */ }
   }
 
   buildNoise(ctx) {
@@ -341,6 +362,7 @@ export class AudioEngine {
   }
 
   tick() {
+    if (this.ctx && this.ready && this.ctx.state === 'suspended') this.resume();
     if (!this.ready || !this.track) return;
     if (this.musicStyle === 'space') {
       // Ambience keeps scheduling even while muted (master gain handles mute).

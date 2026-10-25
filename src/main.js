@@ -68,14 +68,25 @@ const game = new Game({
   onTheme: (themeId) => audio.setTheme(themeId),
 });
 
+/** Start/resume WebAudio from a real user gesture (required on Android/iOS). */
+function ensureAudio() {
+  audio.unlock().then((ok) => {
+    if (!ok) return;
+    audio.resume();
+    audio.setVolumes({ music: settings.music / 10, sfx: settings.sfx / 10 });
+    if (params.has('mute')) audio.setMuted(true);
+    if (audio.track) audio.music(audio.track); // restart the pending track
+  });
+}
+
+// Unlock on the first *any* gesture, not just the first canvas pointerdown:
+// mobile browsers may deliver touchstart/click outside the canvas first.
+for (const ev of ['pointerdown', 'touchstart', 'touchend', 'click', 'keydown']) {
+  window.addEventListener(ev, ensureAudio, { passive: true });
+}
+
 const input = new InputManager(canvas, {
-  onFirstInput: () => {
-    audio.unlock().then(() => {
-      audio.setVolumes({ music: settings.music / 10, sfx: settings.sfx / 10 });
-      if (params.has('mute')) audio.setMuted(true);
-      if (audio.track) audio.music(audio.track); // restart the pending track
-    });
-  },
+  onFirstInput: ensureAudio,
 });
 
 /* ------------------------------------------------------------------ */
@@ -93,7 +104,7 @@ function resize() {
   const scale = Math.min(availW / 240, availH / 420);
   size.cssW = Math.max(240, Math.round(240 * scale));
   size.cssH = Math.max(420, Math.round(420 * scale));
-  size.dpr = Math.min(window.devicePixelRatio || 1, 2);
+  size.dpr = Math.min(window.devicePixelRatio || 1, 3);
   renderer.resize(size.cssW, size.cssH, size.dpr);
   if (frame) {
     frame.style.width = size.cssW + 'px';
@@ -483,12 +494,17 @@ function frame(now) {
   }
 
   renderer.scanlines = settings.scanlines !== false;
-  renderer.render(game, { isTouch: input.isTouch }, frozen ? 1 / 60 : dt);
+  renderer.render(game, {
+    isTouch: input.isTouch,
+    touchPad: input.touchPad,
+    fireHeld: input.fireHeld,
+  }, frozen ? 1 / 60 : dt);
   renderer.present(game);
   drawHdOverlay();
   const p = game.player;
   audio.setMotion(p && !p.dead ? Math.min(1, Math.hypot(p.vx || 0, p.vy || 0) / 130) : 0);
   audio.tick();
+  if (audio.ctx && audio.ctx.state === 'suspended') audio.resume();
 
   if (boot && firstFrame) {
     boot.classList.add('hidden');

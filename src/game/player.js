@@ -150,6 +150,8 @@ export class Player {
     }
 
     // Movement — exponential approach for weighty, smooth handling.
+    // Touch steering uses a much faster approach so the ship feels glued to
+    // the thumb instead of trailing behind it.
     let mx = clamp(input.x || 0, -1, 1);
     let my = clamp(input.y || 0, -1, 1);
     const len = Math.hypot(mx, my);
@@ -157,8 +159,12 @@ export class Player {
       mx /= len;
       my /= len;
     }
-    const speed = PLAYER.speed * (this.phoenixActive ? PLAYER.phoenixSpeedMul : 1);
-    const k = 1 - Math.exp(-PLAYER.accel * dt);
+    const touch = Boolean(input.touch);
+    const speed = PLAYER.speed
+      * (touch ? PLAYER.touchSpeedMul : 1)
+      * (this.phoenixActive ? PLAYER.phoenixSpeedMul : 1);
+    const accel = touch ? PLAYER.touchAccel : PLAYER.accel;
+    const k = 1 - Math.exp(-accel * dt);
     this.vx += (mx * speed - this.vx) * k;
     this.vy += (my * speed - this.vy) * k;
     this.x += this.vx * dt;

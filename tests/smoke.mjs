@@ -9,8 +9,9 @@ import { createStage, expandPattern, nextMissingModule, stageSpawnCount } from '
 import { formationPositions } from '../src/game/formations.js';
 import {
   PLAYER, MODULE_DEFS, MODULE_BY_ID, MODULE_ORDER, SCORING, GAME, BOSS,
-  ENEMY_TYPES, DIFFICULTY, stageInfo,
+  ENEMY_TYPES, DIFFICULTY, stageInfo, VERSION,
 } from '../src/game/config.js';
+import { TOUCH, hitTestTouchButton, isMovePad } from '../src/ui/touch.js';
 import { OPTION_ITEMS } from '../src/game/game.js';
 import { NATURE_BEDS, NATURE_FILES, bedForScene } from '../src/core/ambience.js';
 import { SPACE_LAYERS, SPACE_DETAILS, DUCK_PRESETS } from '../src/core/space_ambience.js';
@@ -573,6 +574,38 @@ test('snapshot stays JSON-serialisable', () => {
   g.startRun();
   g.advance(3, fireDrift);
   assert.doesNotThrow(() => JSON.stringify(g.snapshot()));
+});
+
+console.log('\n── mobile touch controls ───────────────────────────────');
+test('dedicated FIRE button exists and hit-tests correctly', () => {
+  assert.ok(TOUCH.fire, 'FIRE button present');
+  assert.ok(TOUCH.fire.r >= 24, 'FIRE is thumb-sized');
+  assert.equal(hitTestTouchButton(TOUCH.fire.x, TOUCH.fire.y), 'fire');
+});
+test('action buttons are excluded from the movement pad', () => {
+  for (const key of ['fire', 'transform', 'nova', 'pause']) {
+    assert.equal(isMovePad(TOUCH[key].x, TOUCH[key].y), false, `${key} should not move the ship`);
+  }
+  assert.equal(isMovePad(TOUCH.moveBase.x, TOUCH.moveBase.y), true, 'left thumb zone moves');
+});
+test('touch steering accelerates faster than keyboard steering', () => {
+  const touchGame = invincible(new Game({ seed: 31 }));
+  touchGame.startRun();
+  touchGame.advance(0.1, () => ({ x: 1, y: 0, fire: false, touch: true }));
+  const keysGame = invincible(new Game({ seed: 31 }));
+  keysGame.startRun();
+  keysGame.advance(0.1, () => ({ x: 1, y: 0, fire: false }));
+  assert.ok(
+    touchGame.player.x > keysGame.player.x + 1,
+    `touch ${touchGame.player.x.toFixed(1)} vs keys ${keysGame.player.x.toFixed(1)}`,
+  );
+});
+test('touch top speed is at least keyboard speed', () => {
+  assert.ok(PLAYER.touchAccel > PLAYER.accel);
+  assert.ok(PLAYER.touchSpeedMul >= 1);
+});
+test('version bumped for the mobile controls release', () => {
+  assert.equal(VERSION, '1.7.0');
 });
 
 /* ------------------------------------------------------------------ */

@@ -305,39 +305,63 @@ export function drawFormationHudHD(ctx, game) {
 /* Touch controls                                                      */
 /* ------------------------------------------------------------------ */
 
-export function drawTouchControlsHD(ctx, game, isTouch) {
+export function drawTouchControlsHD(ctx, game, input) {
+  const isTouch = Boolean(input && (input.isTouch || input.touchMode || input.touch === true));
   if (!isTouch || game.scene !== 'playing') return;
   const pulse = 0.6 + 0.2 * Math.sin(game.time * 4);
+  const touchPad = (input && input.touchPad) || null;
+  const fireHeld = Boolean(input && input.fireHeld);
+  const moving = Boolean(touchPad && touchPad.active);
 
-  // Movement pad hint.
-  const padX = 44;
-  const padY = 372;
-  ctx.strokeStyle = withAlpha(P.cyanSh, 0.28 * pulse);
-  ctx.lineWidth = 0.8;
+  // ---- Movement stick (left thumb) -----------------------------------
+  const pad = TOUCH.moveBase;
+  ctx.strokeStyle = withAlpha(P.cyanSh, (moving ? 0.55 : 0.3) * pulse);
+  ctx.lineWidth = 0.9;
   ctx.beginPath();
-  ctx.arc(padX, padY, 21, 0, TAU);
+  ctx.arc(pad.x, pad.y, pad.r, 0, TAU);
   ctx.stroke();
   ctx.beginPath();
-  ctx.arc(padX, padY, 10, 0, TAU);
+  ctx.arc(pad.x, pad.y, pad.r * 0.56, 0, TAU);
   ctx.stroke();
-  label(ctx, 'DRAG', padX, padY + 30, { align: 'center', size: 5, color: withAlpha(P.cyan, 0.55), tracking: 1.5 });
 
-  const button = (b, main, sub, color, glowColor) => {
-    const g = ctx.createRadialGradient(b.x, b.y - 4, 2, b.x, b.y, b.r);
-    g.addColorStop(0, withAlpha(color, 0.28));
-    g.addColorStop(1, withAlpha(P.void, 0.28));
+  const kx = pad.x + (moving ? (touchPad.dx || 0) * (pad.r - 10) : 0);
+  const ky = pad.y + (moving ? (touchPad.dy || 0) * (pad.r - 10) : 0);
+  const kr = moving ? 13 : 10;
+  const knob = ctx.createRadialGradient(kx, ky - 2, 1, kx, ky, kr);
+  knob.addColorStop(0, withAlpha(P.cyanHi, moving ? 0.55 : 0.26));
+  knob.addColorStop(1, withAlpha(P.void, 0.12));
+  ctx.fillStyle = knob;
+  ctx.beginPath();
+  ctx.arc(kx, ky, kr, 0, TAU);
+  ctx.fill();
+  ctx.strokeStyle = withAlpha(P.cyanHi, moving ? 0.95 : 0.45);
+  ctx.lineWidth = moving ? 1.4 : 0.9;
+  ctx.beginPath();
+  ctx.arc(kx, ky, kr, 0, TAU);
+  ctx.stroke();
+  label(ctx, 'MOVE', pad.x, pad.y - pad.r - 6, {
+    align: 'center', size: 5, color: withAlpha(P.cyan, moving ? 0.9 : 0.55), tracking: 1.5,
+  });
+
+  // ---- Action buttons -------------------------------------------------
+  const button = (b, main, sub, color, glowColor, pressed = false, extra = 0) => {
+    const r = b.r + extra;
+    const g = ctx.createRadialGradient(b.x, b.y - 4, 2, b.x, b.y, r);
+    g.addColorStop(0, withAlpha(color, pressed ? 0.45 : 0.28));
+    g.addColorStop(1, withAlpha(P.void, 0.32));
     ctx.fillStyle = g;
     ctx.beginPath();
-    ctx.arc(b.x, b.y, b.r, 0, TAU);
+    ctx.arc(b.x, b.y, r, 0, TAU);
     ctx.fill();
-    ctx.strokeStyle = withAlpha(glowColor, 0.7);
-    ctx.lineWidth = 0.9;
+    ctx.strokeStyle = withAlpha(glowColor, pressed ? 1 : 0.7);
+    ctx.lineWidth = pressed ? 1.6 : 0.9;
     ctx.stroke();
-    glow(ctx, b.x, b.y, b.r + 4, glowColor, 0.12);
+    glow(ctx, b.x, b.y, r + 4, glowColor, pressed ? 0.26 : 0.12);
     label(ctx, main, b.x, b.y + 0.5, { align: 'center', size: 6.4, color: glowColor, tracking: 1 });
     label(ctx, sub, b.x, b.y + 8, { align: 'center', size: 4.6, color: withAlpha(P.marbleMid, 0.85), tracking: 0.5 });
   };
 
+  button(TOUCH.fire, 'FIRE', 'HOLD', P.orange, P.orangeHi, fireHeld, 3);
   button(TOUCH.transform, 'FORM', 'X', P.gold, P.goldHi);
   button(TOUCH.nova, 'NOVA', 'x' + game.novas, P.orange, P.orangeHi);
 

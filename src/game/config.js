@@ -7,7 +7,7 @@ import { P, THEMES, themeForStage, loopForStage } from '../render/palette.js';
 export const VIEW = { w: 240, h: 420 };
 
 /** Game version — shown by the browser self-test so deployments can be verified. */
-export const VERSION = '1.6.0';
+export const VERSION = '1.7.0';
 
 /** Playfield bounds (HUD occupies the top strip). */
 export const FIELD = {
@@ -31,6 +31,8 @@ export const HUD = {
 export const PLAYER = {
   speed: 122,
   accel: 18, // approach rate (per second, exponential)
+  touchAccel: 34, // snappier response for touch steering
+  touchSpeedMul: 1.12, // touch drags get a little extra top speed
   coreR: 4.5, // core hitbox radius (forgiving)
   craftR: 6.5, // used when no modules docked / for pickups
   spawnX: 120,

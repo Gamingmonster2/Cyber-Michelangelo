@@ -160,7 +160,9 @@ export class Renderer {
     const use3d = wants3d && gameplayScene && Boolean(this.renderer3d) && this.renderer3d.ready;
     this.use3d = use3d;
     if (this.canvas3d) this.canvas3d.style.display = use3d ? 'block' : 'none';
-    this.canvas.style.imageRendering = use3d ? 'auto' : 'pixelated';
+    // HD-2D is vector art: always let the browser smooth the upscale instead
+    // of showing chunky pixels on phones with a higher DPR.
+    this.canvas.style.imageRendering = 'auto';
     if (use3d) this.renderer3d.render(game, game.time, dt);
 
     const ctx = this.screen.ctx;
@@ -233,7 +235,8 @@ export class Renderer {
     const cvs = this.canvas;
     if (!cvs.width || !cvs.height) return;
     d.setTransform(1, 0, 0, 1, 0, 0);
-    d.imageSmoothingEnabled = this.screenScale >= 3 || this.use3d;
+    d.imageSmoothingEnabled = true;
+    d.imageSmoothingQuality = 'high';
     d.globalAlpha = 1;
     if (this.use3d) {
       d.clearRect(0, 0, cvs.width, cvs.height);
@@ -315,7 +318,7 @@ export class Renderer {
     drawFormationHudHD(ctx, game);
     drawBannerHD(ctx, game);
     drawPopupsHD(ctx, game);
-    drawTouchControlsHD(ctx, game, input && input.isTouch);
+    drawTouchControlsHD(ctx, game, input);
 
     // First-run guidance: teach the pod → module loop in the first seconds.
     if (game.scene === 'playing' && game.stage === 1 && game.tutorialTimer > 0 && !game.player.hasAllModules) {

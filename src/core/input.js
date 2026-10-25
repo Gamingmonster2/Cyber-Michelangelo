@@ -43,10 +43,16 @@ export class InputManager {
     this.touchMode = false;
     this.suppressMouseUntil = 0;
 
-    // Touch state (logical coords).
+    // Touch state (logical coords). Movement and fire are tracked by pointer id
+    // so two thumbs can steer and shoot at the same time.
     this.touchPad = { active: false, pointerId: null, originX: 0, originY: 0, dx: 0, dy: 0 };
     this.touchQueue = [];
     this.pointerDown = false;
+    this.fireHeld = false;
+    this.firePointerId = null;
+    // Tap = confirm, swipe = menu navigation (touch menus on phones).
+    this.tap = null;
+    this.navQueue = [];
 
     this._bind();
   }
@@ -82,6 +88,10 @@ export class InputManager {
       this.keys.clear();
       this.touchQueue.length = 0;
       this.touchPad.active = false;
+      this.fireHeld = false;
+      this.firePointerId = null;
+      this.tap = null;
+      this.navQueue.length = 0;
       this.x = 0;
       this.y = 0;
     });
@@ -98,6 +108,14 @@ export class InputManager {
 
       const btn = hitTestTouchButton(x, y);
       if (btn) {
+        if (btn === 'fire') {
+          // Fire is a hold button: it stays on until this pointer lifts.
+          this.fireHeld = true;
+          this.firePointerId = e.pointerId;
+          this._firstInput();
+          e.preventDefault();
+          return;
+        }
         this._pressButton(btn);
         e.preventDefault();
         return;
@@ -105,6 +123,7 @@ export class InputManager {
       if (isMovePad(x, y)) {
         this.touchPad = { active: true, pointerId: e.pointerId, originX: x, originY: y, dx: 0, dy: 0 };
         this.pointerDown = true;
+        this.tap = { pointerId: e.pointerId, x, y, moved: false };
         e.preventDefault();
       }
     });
@@ -112,8 +131,8 @@ export class InputManager {
     canvas.addEventListener('pointermove', (e) => {
       if (!this.touchPad.active || e.pointerId !== this.touchPad.pointerId) return;
       const { x, y } = this.toLogical(e);
-      // Relative drag: 16 logical pixels of finger travel = full speed.
-      const max = 16;
+      // Relative drag: ~20 logical pixels of finger travel = full speed.
+      const max = TOUCH.moveRange;
       const dx = (x - this.touchPad.originX) / max;
       const dy = (y - this.touchPad.originY) / max;
       const len = Math.hypot(dx, dy);
@@ -124,6 +143,19 @@ export class InputManager {
         this.touchPad.dx = dx;
         this.touchPad.dy = dy;
       }
+
+      // Detect taps vs swipes: a short tap confirms a menu item, a vertical
+      // swipe moves the menu selection (phones have no arrow keys).
+      if (this.tap && this.tap.pointerId === e.pointerId) {
+        const totalDx = x - this.tap.x;
+        const totalDy = y - this.tap.y;
+        if (Math.hypot(totalDx, totalDy) > 12) this.tap.moved = true;
+        if (Math.abs(totalDy) > 34 && Math.abs(totalDy) > Math.abs(totalDx) * 1.15) {
+          this.navQueue.push(totalDy > 0 ? 'down' : 'up');
+          this.tap.x = x;
+          this.tap.y = y;
+        }
+      }
       e.preventDefault?.();
     }, { passive: false });
 
@@ -133,12 +165,22 @@ export class InputManager {
         this.touchPad.pointerId = null;
         this.touchPad.dx = 0;
         this.touchPad.dy = 0;
+        this.pointerDown = false;
       }
-      this.pointerDown = false;
+      if (this.tap && this.tap.pointerId === e.pointerId) {
+        if (e.type === 'pointerup' && !this.tap.moved) this.navQueue.push('confirm');
+        this.tap = null;
+      }
+      if (this.firePointerId === e.pointerId) {
+        this.fireHeld = false;
+        this.firePointerId = null;
+      }
     };
     canvas.addEventListener('pointerup', endPointer);
     canvas.addEventListener('pointercancel', endPointer);
+    canvas.addEventListener('lostpointercapture', endPointer);
     window.addEventListener('pointerup', endPointer);
+    window.addEventListener('pointercancel', endPointer);
   }
 
   _firstInput() {
@@ -237,8 +279,8 @@ export class InputManager {
     this.x = x;
     this.y = y;
 
-    // Fire: keyboard/gamepad button, OR always-on for touch players.
-    const fire = this.keys.has('fire') || (this.touchMode && this.touchPad.active) || this._padFire;
+    // Fire: keyboard/gamepad button, or the held touch FIRE button.
+    const fire = this.keys.has('fire') || this.fireHeld || this._padFire;
 
     const fireActions = { fire, confirm: this.keys.has('confirm') || fire };
     const actions = [
@@ -246,7 +288,7 @@ export class InputManager {
       'transform', 'nova', 'mute', 'fullscreen', 'restart',
     ];
 
-    const snapshot = { x, y, fire };
+    const snapshot = { x, y, fire, touch: this.touchMode };
     for (const action of actions) {
       const now = Boolean(this.keys.has(action)) || Boolean(fireActions[action]);
       const edge = now && !this.prev[action];
@@ -262,6 +304,14 @@ export class InputManager {
       else if (btn === 'pause') snapshot.pause = true;
     }
     this.touchQueue.length = 0;
+
+    // Taps and swipes collected by the touch gesture handler.
+    for (const action of this.navQueue) {
+      if (action === 'confirm') snapshot.confirm = true;
+      else if (action === 'up') snapshot.up = true;
+      else if (action === 'down') snapshot.down = true;
+    }
+    this.navQueue.length = 0;
     return snapshot;
   }
 

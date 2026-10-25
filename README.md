@@ -6,8 +6,16 @@
 
 ### ▶ Play the live build · جرّبها الآن
 
-**<https://ly.id.ly/Cyber-Michelangelo/>** — deployed straight from this repository (GitHub Pages mirror).
-A Cloudflare Pages deployment with a custom domain is planned next.
+**<https://cyber.stream.com.ly/>** — deployed from this repository via GitHub Pages + Cloudflare, on the STREAM platform.
+
+### What's new in v1.7 — mobile controls, sound & sharpness
+
+- **Two-thumb touch layout:** the left side is a relative-drag movement stick (with a live knob), a dedicated **FIRE** button sits under the right thumb, and **FORM / NOVA / pause** keep their own buttons. Steering and shooting now work simultaneously with two fingers.
+- **Snappier ship:** touch steering uses a much faster acceleration curve and slightly higher top speed, so the craft follows the thumb instead of trailing behind it.
+- **Separate fire:** holding **FIRE** fires; dragging no longer auto-fires. Tap = confirm and swipe up/down = menu navigation on phones.
+- **Audio unlock hardened:** the AudioContext is created/resumed inside the first real gesture (pointer/touch/click/key) and re-resumed on later frames if Android/iOS hands back a suspended context.
+- **Sharper phones:** DPR is no longer capped at 2× (now up to 3×), the internal HD buffer scales up to 4×, and the canvas uses smooth upscaling instead of `image-rendering: pixelated` — mobile now looks crisp instead of blocky.
+- 53 logic tests + 19 in-browser checks green.
 
 ### What's new in v1.6 — “space nature” sound design
 
@@ -105,15 +113,15 @@ It prints the deployment URL (`https://<project>.pages.dev`). Add the custom dom
 
 | Action | Keyboard | Gamepad | Touch |
 | --- | --- | --- | --- |
-| Move | `← ↑ → ↓` / `WASD` | Left stick / D-pad | Drag anywhere (relative) |
-| Fire | `Z` / `Space` / `J` (hold) | A | Auto-fire while dragging |
-| Transform (split / Phoenix) | `X` / `K` / `Shift` | X | `FORM` button |
-| Nova bomb | `B` / `L` | B | `NOVA` button |
+| Move | `← ↑ → ↓` / `WASD` | Left stick / D-pad | Drag left side / upper area (relative) |
+| Fire | `Z` / `Space` / `J` (hold) | A | Hold **FIRE** (bottom-right) |
+| Transform (split / Phoenix) | `X` / `K` / `Shift` | X | **FORM** button |
+| Nova bomb | `B` / `L` | B | **NOVA** button |
 | Pause | `Esc` / `P` | Start | ⏸ button |
 | Mute | `M` | — | — |
 | Fullscreen | `F` | — | — |
 
-Menus: `↑ ↓` + `Enter`; `Esc` = back. Auto-fire can also be enabled for keyboard in **Options**. The renderer style (**HD-2D / 3D**) is picked from the title menu (`RENDER:` row) or **Options → RENDERER**, and the soundtrack (**SPACE NATURE / NATURE / CHIPTUNE**) from **Options → SOUNDTRACK**; the **AMBIENCE** slider sets the bed volume — all remembered between sessions.
+Menus on touch: **tap** = confirm, **swipe up/down** = navigate. On keyboard: `↑ ↓` + `Enter`; `Esc` = back. Auto-fire can also be enabled in **Options**. The renderer style (**HD-2D / 3D**) is picked from the title menu (`RENDER:` row) or **Options → RENDERER**, and the soundtrack (**SPACE NATURE / NATURE / CHIPTUNE**) from **Options → SOUNDTRACK**; the **AMBIENCE** slider sets the bed volume — all remembered between sessions.
 
 ---
 
@@ -204,7 +212,7 @@ src/
   core/
     math.js           deterministic RNG, easing, geometry helpers
     storage.js        safe localStorage wrapper + high scores/settings
-    input.js          keyboard + gamepad + relative-drag touch
+    input.js          keyboard + gamepad + touch (multi-pointer move/fire)
     audio.js          nature-flavoured SFX synthesis, soundtrack switching, auto-ducking
   core/space_ambience.js  default “space nature” bed: rumble + drifting wind + random details
   core/ambience.js    optional recorded-nature beds (loops, crossfades, accents, fallback)
@@ -235,7 +243,7 @@ src/
     renderer.js       full renderer + particle/FX system, optional 3D switch
   render3d/
     renderer3d.js     optional three.js WebGL renderer (lazy-loaded, own canvas)
-  ui/touch.js         touch-control layout shared by input & renderer
+  ui/touch.js         touch-control layout shared by input & renderer (FIRE/FORM/NOVA + move stick)
 assets/
   audio/nature/       nature field recordings (for the optional NATURE soundtrack) + CREDITS.md
 vendor/
